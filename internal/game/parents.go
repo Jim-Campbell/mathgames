@@ -96,6 +96,22 @@ func (s *Service) ParentsSummary(ctx context.Context, days int) (*ParentsSummary
 		return nil, err
 	}
 
+	// Never serialize nil slices as JSON null — the PWA reads .length/.map on
+	// each of these, and a fresh install or a just-reset DB has zero of
+	// everything. Empty arrays keep the parent view rendering cleanly.
+	if summary.PerDay == nil {
+		summary.PerDay = []DayActivity{}
+	}
+	if summary.PerSkill == nil {
+		summary.PerSkill = []SkillActivity{}
+	}
+	if summary.RecentMisses == nil {
+		summary.RecentMisses = []Miss{}
+	}
+	if summary.Bank == nil {
+		summary.Bank = []BankStatus{}
+	}
+
 	return summary, nil
 }
 

@@ -53,6 +53,7 @@ button.btn {
 button.btn.primary { background: linear-gradient(135deg, var(--orange), var(--orange-deep)); color: #1a0e00; }
 button.btn.ghost { background: none; color: var(--muted); }
 button.btn.sm { padding: 8px 12px; font-size: .78rem; min-height: 36px; }
+button.btn.danger { background: rgba(255,82,82,.14); color: var(--red); border: 1px solid var(--red); }
 button.btn:disabled { opacity: .4; cursor: default; }
 label.f { display: block; font-size: .75rem; color: var(--muted); margin: 12px 0 4px; }
 input[type=text], input[type=number] {
@@ -179,6 +180,21 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .feedback.wrong .fb-title { color: var(--red); }
 .xp-fly { font-weight: 800; color: var(--gold); font-size: 1.3rem; animation: xp-float .9s ease-out; }
 @keyframes xp-float { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 1; } }
+.fb-speed { margin-top: 8px; font-weight: 800; font-size: .9rem; letter-spacing: .04em; }
+.fb-speed.blazing { color: var(--gold); text-shadow: 0 0 12px rgba(255,213,74,.6); }
+.fb-speed.fast { color: var(--orange); }
+
+/* ---- ki-charge speed timer ---- */
+.ki-wrap { margin: 0 2px 16px; }
+.ki-track { height: 14px; border-radius: 8px; background: var(--card2); border: 1px solid var(--line); overflow: hidden; }
+.ki-fill { height: 100%; border-radius: 8px 0 0 8px; transition: background-color .25s; }
+.ki-fill.blazing { background: linear-gradient(90deg, var(--gold), var(--orange)); box-shadow: 0 0 14px rgba(255,213,74,.7); }
+.ki-fill.fast { background: linear-gradient(90deg, var(--orange), var(--orange-deep)); }
+.ki-fill.base { background: var(--muted); }
+.ki-taunt { text-align: center; font-size: .78rem; font-weight: 800; letter-spacing: .03em; margin-top: 6px; }
+.ki-taunt.blazing { color: var(--gold); }
+.ki-taunt.fast { color: var(--orange); }
+.ki-taunt.base { color: var(--muted); }
 .fb-answer { font-weight: 700; margin: 8px 0 4px; }
 .fb-explain { color: var(--muted); font-size: .92rem; line-height: 1.4; margin-bottom: 12px; }
 .qcard.correct { box-shadow: 0 0 0 3px var(--green); }
@@ -239,6 +255,9 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .story-text { color: var(--muted); line-height: 1.6; margin: 12px 0; white-space: pre-wrap; }
 
 /* ---- parents ---- */
+.danger-h { color: var(--red); }
+.danger-zone { border: 1px solid var(--red); border-radius: 12px; padding: 14px; background: rgba(255,82,82,.05); }
+.danger-copy { font-size: .82rem; color: var(--muted); line-height: 1.45; margin-bottom: 12px; }
 .day-chart { width: 100%; height: auto; }
 .ptab { width: 100%; border-collapse: collapse; font-size: .8rem; min-width: 480px; }
 .ptab th, .ptab td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
@@ -315,6 +334,7 @@ const S = {
   overlayQueue: [], currentOverlay: null,
   numpad: '', numpadVals: ['', ''], numpadField: 0, mcSelected: -1, textVal: '',
   muted: localStorage.getItem('mg_mute') === '1',
+  showTimer: localStorage.getItem('mg_timer') !== '0',
   seenOver9000: localStorage.getItem('mg_seen_over9000') === '1',
   offline: false, aiEnabled: true,
   taunt: TAUNTS[Math.floor(Math.random() * TAUNTS.length)],
@@ -607,6 +627,7 @@ async function loadNextQuestion() {
   S.locked = false;
   S.currentStart = Date.now();
   render();
+  startKiTimer();
 }
 
 // ---------- PLAY: input handlers ----------
@@ -658,6 +679,7 @@ function playFeedbackSfx(result) {
   else sfx.wrong();
 }
 function afterAttempt(result, elapsedMs) {
+  stopKiTimer();
   const sess = S.session;
   sess.xpEarned += result.xp_earned;
   sess.total++;
@@ -666,7 +688,10 @@ function afterAttempt(result, elapsedMs) {
   sess.streakBest = Math.max(sess.streakBest, result.streak);
   if (sess.mode === 'daily') { sess.dailyResults.push({ correct: result.correct, ms: elapsedMs }); sess.qIndex++; }
 
-  S.feedback = Object.assign({}, result, { dismissable: result.correct });
+  // Capture the speed zone he landed in, from the same thresholds the server
+  // scored with, so correct feedback can celebrate a speed bonus honestly.
+  const zone = S.current ? kiZone(elapsedMs, S.current.difficulty) : 'base';
+  S.feedback = Object.assign({}, result, { dismissable: result.correct, speedZone: zone });
   render();
   playFeedbackSfx(result);
 
@@ -763,8 +788,65 @@ function renderQuestionScreen(m, sess) {
   const qcardClass = S.feedback ? (S.feedback.correct ? 'correct' : 'wrong') : '';
   m.innerHTML = '<div class="play-wrap">' + playHeader(sess) +
     '<div class="qcard ' + qcardClass + '">' + displayHTML + '<div class="prompt">' + esc(payload.prompt) + '</div></div>' +
+    (!S.feedback && S.showTimer ? kiBarHTML(q.difficulty) : '') +
     (S.feedback ? feedbackHTML() : inputHTML) +
     '</div>';
+}
+
+// ---------- PLAY: ki-charge speed timer ----------
+// Mirrors internal/game/score.go: fast_ms = 5000 + 2000*difficulty (x1.5 XP),
+// ok_ms = 3*fast_ms (x1.2 XP), slower = base. The bar drains over ok_ms; the
+// zone he's in is the speed bonus he's currently earning. Running out is not a
+// failure — it just means base XP, so there's no buzzer and no red "time up".
+function fastMs(d) { return 5000 + 2000 * d; }
+function okMs(d) { return 3 * fastMs(d); }
+const KI_ZONES = {
+  blazing: { taunt: 'BLAZING! 🔥 x1.5 power!', snap: 100 },
+  fast:    { taunt: 'Vegeta’s catching up… x1.2', snap: 62 },
+  base:    { taunt: 'Powering down — focus!', snap: 22 },
+};
+function kiZone(elapsed, d) {
+  if (elapsed <= fastMs(d)) return 'blazing';
+  if (elapsed <= okMs(d)) return 'fast';
+  return 'base';
+}
+function kiBarHTML(d) {
+  const zone = kiZone(Date.now() - S.currentStart, d);
+  const pct = Math.max(0, 1 - (Date.now() - S.currentStart) / okMs(d)) * 100;
+  return '<div class="ki-wrap"><div class="ki-track"><div id="kiBar" class="ki-fill ' + zone + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+    '<div id="kiTaunt" class="ki-taunt ' + zone + '">' + KI_ZONES[zone].taunt + '</div></div>';
+}
+let kiHandle = null, kiIsInterval = false;
+function stopKiTimer() {
+  if (kiHandle == null) return;
+  if (kiIsInterval) clearInterval(kiHandle); else cancelAnimationFrame(kiHandle);
+  kiHandle = null;
+}
+function reducedMotion() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+function applyKi(snap) {
+  const bar = document.getElementById('kiBar');
+  if (!bar || !S.current) return;
+  const d = S.current.difficulty, elapsed = Date.now() - S.currentStart;
+  const zone = kiZone(elapsed, d);
+  bar.style.width = (snap ? KI_ZONES[zone].snap : Math.max(0, 1 - elapsed / okMs(d)) * 100).toFixed(1) + '%';
+  bar.className = 'ki-fill ' + zone;
+  const taunt = document.getElementById('kiTaunt');
+  if (taunt) { taunt.textContent = KI_ZONES[zone].taunt; taunt.className = 'ki-taunt ' + zone; }
+}
+function startKiTimer() {
+  stopKiTimer();
+  if (!S.showTimer) return;
+  const alive = () => S.session && !S.feedback && S.view === 'play' && S.current && document.getElementById('kiBar');
+  if (reducedMotion()) {
+    // Snap between zones instead of a continuous smooth drain.
+    kiIsInterval = true;
+    applyKi(true);
+    kiHandle = setInterval(() => { if (!alive()) return stopKiTimer(); applyKi(true); }, 500);
+  } else {
+    kiIsInterval = false;
+    const frame = () => { if (!alive()) return stopKiTimer(); applyKi(false); kiHandle = requestAnimationFrame(frame); };
+    kiHandle = requestAnimationFrame(frame);
+  }
 }
 function numpadHTML() {
   const keys = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '⌫', '0', '✓'];
@@ -795,7 +877,11 @@ function textHTML() {
 }
 function feedbackHTML() {
   const f = S.feedback;
-  if (f.correct) return '<div class="feedback correct"><div class="fb-title">✅ Correct!</div><div class="xp-fly">+' + f.xp_earned + ' ⚡' + (f.zenkai ? ' 🔥 ZENKAI x2!' : '') + '</div></div>';
+  if (f.correct) {
+    const speedTag = f.speedZone === 'blazing' ? '<div class="fb-speed blazing">⚡ BLAZING FAST · +50%</div>'
+      : f.speedZone === 'fast' ? '<div class="fb-speed fast">⚡ Fast · +20%</div>' : '';
+    return '<div class="feedback correct"><div class="fb-title">✅ Correct!</div><div class="xp-fly">+' + f.xp_earned + ' ⚡' + (f.zenkai ? ' 🔥 ZENKAI x2!' : '') + '</div>' + speedTag + '</div>';
+  }
   return '<div class="feedback wrong"><div class="fb-title">Not quite</div>' +
     '<div class="fb-answer">Answer: ' + esc(formatAnswer(S.current.payload.kind, f.answer)) + '</div>' +
     '<div class="fb-explain">' + esc(f.explanation || '') + '</div>' +
@@ -935,6 +1021,9 @@ function renderParents(m) {
     '<h3>Question Review</h3>' + questionsReviewHTML(S.questions) +
     '<h3>Settings</h3>' + settingsFormHTML(st) +
     '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
+    '<h3 class="danger-h">Danger Zone</h3><div class="danger-zone">' +
+    '<div class="danger-copy">Reset all of Skylar’s progress back to zero — power level, XP, levels, streaks, unlocks, daily history, and quest progress. The question bank and saga stories are kept. <b>This cannot be undone</b> (export a backup first).</div>' +
+    '<button class="btn danger" onclick="confirmReset()">↺ Reset All Progress</button></div>' +
     '<div class="version">DBZ Math Training · v1.0</div></div>';
 }
 function dayChartSVG(perDay) {
@@ -995,7 +1084,30 @@ function settingsFormHTML(st) {
     '<label class="f">Level overrides (blank = adaptive)</label>' +
     SKILLS.map(sk => '<div class="override-row"><span>' + sk.name + '</span><input type="number" min="1" max="10" id="ov_' + sk.slug + '" value="' + (st.level_override[sk.slug] || '') + '" placeholder="auto"/></div>').join('') +
     '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setMuteDefault" ' + (S.muted ? 'checked' : '') + ' onchange="toggleMute()"/> Mute sound</label>' +
+    '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setTimer" ' + (S.showTimer ? 'checked' : '') + ' onchange="toggleTimer()"/> Show speed timer during play</label>' +
     '<button class="btn primary" onclick="saveSettings()">Save Settings</button></div>';
+}
+function toggleTimer() {
+  S.showTimer = !S.showTimer;
+  localStorage.setItem('mg_timer', S.showTimer ? '1' : '0');
+}
+function confirmReset() {
+  openDialog('<h2>Reset everything?</h2>' +
+    '<div class="dc-sub" style="margin-bottom:14px">This wipes all of Skylar’s progress and <b>cannot be undone</b>. Type <b>RESET</b> below to confirm.</div>' +
+    '<input id="resetConfirm" type="text" placeholder="RESET" autocapitalize="characters" autocomplete="off"/>' +
+    '<div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn danger" onclick="runReset()">Reset All Progress</button></div>');
+}
+async function runReset() {
+  const val = ($('#resetConfirm').value || '').trim().toUpperCase();
+  if (val !== 'RESET') { toast('Type RESET to confirm'); return; }
+  closeDialog();
+  try {
+    await api('/reset', { method: 'POST', body: { confirm: 'RESET' } });
+    lastPowerShown = null;
+    toast('Progress reset to zero ⚡');
+    await loadParents(); render();
+  } catch (e) { showError(e); }
 }
 async function saveSettings() {
   const daily_count = parseInt($('#setDailyCount').value, 10);

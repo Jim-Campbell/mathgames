@@ -373,6 +373,25 @@ func (f *fakeStore) UpdateQuestChapterStory(ctx context.Context, id int64, title
 	return nil
 }
 
+func (f *fakeStore) ResetProgress(ctx context.Context) error {
+	f.attempts = nil
+	f.sessions = map[int64]*Session{}
+	f.unlocks = map[string]*Unlock{}
+	f.daily = map[string]*DailyResult{}
+	for skill, s := range f.skillStates {
+		f.skillStates[skill] = &SkillState{Skill: s.Skill, Level: 1, UpdatedAt: time.Now()}
+	}
+	for _, ch := range f.chapters {
+		ch.Progress = 0
+		ch.CompletedAt = nil
+	}
+	for _, q := range f.questions {
+		q.TimesServed = 0
+	}
+	f.settings.LevelOverride = map[string]int{}
+	return nil
+}
+
 var _ Store = (*fakeStore)(nil)
 
 // addChapter is a test helper for seeding a quest chapter directly (bypassing

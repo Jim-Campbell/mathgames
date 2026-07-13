@@ -55,6 +55,8 @@ func (h *GameHandler) Routes(r chi.Router) {
 	r.Get("/questions", h.listQuestions)
 	r.Post("/questions/{id}/retire", h.retireQuestion)
 	r.Post("/questions/{id}/unretire", h.unretireQuestion)
+
+	r.Post("/reset", h.reset)
 }
 
 // ---- sessions ----
@@ -396,6 +398,29 @@ func (h *GameHandler) setQuestionRetired(w http.ResponseWriter, r *http.Request,
 	}
 	if err := h.svc.SetQuestionRetired(r.Context(), id, retired); err != nil {
 		h.fail(w, "set question retired", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- admin ----
+
+// reset requires the caller to send {"confirm":"RESET"} — the bearer key
+// alone isn't enough friction for an irreversible wipe of all progress.
+func (h *GameHandler) reset(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Confirm string `json:"confirm"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if body.Confirm != "RESET" {
+		writeError(w, http.StatusBadRequest, `send {"confirm":"RESET"} to confirm this wipes all progress`)
+		return
+	}
+	if err := h.svc.ResetProgress(r.Context()); err != nil {
+		h.fail(w, "reset progress", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

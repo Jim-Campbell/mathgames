@@ -113,4 +113,15 @@ type Store interface {
 	// UpdateQuestChapterStory rewrites one chapter's title/story after a
 	// story batch, tagging it with the batch that produced it.
 	UpdateQuestChapterStory(ctx context.Context, id int64, title, story string, aiBatchID int64) error
+
+	// ---- admin ----
+
+	// ResetProgress wipes every player-progress row (attempts, sessions,
+	// unlocks, daily_results), resets skill_state to fresh (level 1, 0 XP,
+	// streak/wrong_run/window all 0), zeros quest_chapters progress and
+	// times_served, and clears settings.level_override — a factory reset
+	// for handing the app to a kid the first time, or starting over. The
+	// question bank, saga story text, and ai_batches history are untouched
+	// (expensive to regenerate, and not "progress").
+	ResetProgress(ctx context.Context) error
 }

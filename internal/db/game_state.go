@@ -437,3 +437,38 @@ func (d *DB) UpdateSettings(ctx context.Context, s *game.Settings) error {
 	}
 	return nil
 }
+
+// ---- admin ----
+
+// ResetProgress wipes all player progress in one transaction. attempts must
+// be deleted before sessions (attempts.session_id references sessions(id)).
+// The question bank, quest_chapters story text, and ai_batches are left
+// alone — only progress against that content resets.
+func (d *DB) ResetProgress(ctx context.Context) error {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin reset tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	stmts := []string{
+		`DELETE FROM attempts`,
+		`DELETE FROM sessions`,
+		`DELETE FROM unlocks`,
+		`DELETE FROM daily_results`,
+		`UPDATE skill_state SET level = 1, xp = 0, streak = 0, wrong_run = 0, window_total = 0, window_correct = 0, updated_at = NOW()`,
+		`UPDATE quest_chapters SET progress = 0, completed_at = NULL`,
+		`UPDATE questions SET times_served = 0`,
+		`UPDATE settings SET level_override = '{}'::jsonb, updated_at = NOW() WHERE id = 1`,
+	}
+	for _, stmt := range stmts {
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("reset progress: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit reset: %w", err)
+	}
+	return nil
+}

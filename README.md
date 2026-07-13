@@ -100,7 +100,20 @@ periodically, since there's no other durable copy.
 `#/parents` is a hidden route (no tab, no PIN) behind the same bearer key —
 per-day activity, per-skill accuracy/trend, recent misses, AI content bank
 status with a Generate button, question review/retire, settings
-(daily count, per-skill level overrides), and the export download.
+(daily count, per-skill level overrides, mute, speed-timer toggle), the
+export download, and a **Danger Zone** with a factory reset.
+
+The reset (`POST /api/reset`, gated on `{"confirm":"RESET"}`) wipes all
+progress — power level, XP, levels, streaks, unlocks, daily history, quest
+progress — back to a fresh start, while keeping the question bank and saga
+stories. Use it before handing the app to Skylar for the first time (export
+a backup first — it can't be undone).
+
+During play, an optional **ki-charge speed timer** shows which speed bonus
+he's currently earning (×1.5 "blazing" → ×1.2 "fast" → base), mapped to the
+same thresholds `internal/game/score.go` scores with. It never punishes a
+slow answer (no countdown-to-zero); parents can hide it from the settings
+toggle.
 
 ## Parked: earned screen-time ledger
 

@@ -334,3 +334,66 @@ func TestService_NextQuestions_MixedRespectsSessionAndLevelOverride(t *testing.T
 		t.Fatalf("difficulty = %d, want override level 7", qs[0].Difficulty)
 	}
 }
+
+func TestService_ResetProgress_WipesProgressKeepsBank(t *testing.T) {
+	svc, store := testService()
+	ctx := context.Background()
+
+	// Seed a spread of progress: an answered attempt, XP/level/streak,
+	// an unlock, a completed daily, a quest chapter with progress, a
+	// served AI question, and a level override.
+	sess := &Session{Mode: ModeTraining}
+	store.CreateSession(ctx, sess)
+	qID := insertNumericQuestion(t, store, "multiplication", 4, 42)
+	store.questions[qID].TimesServed = 9
+	given, _ := json.Marshal(NumericAnswer{Value: 42})
+	if _, err := svc.Attempt(ctx, sess.ID, qID, given, 1000); err != nil {
+		t.Fatal(err)
+	}
+	store.UpdateSkillState(ctx, &SkillState{Skill: "division", Level: 6, XP: 1234, Streak: 5, WrongRun: 2, WindowTotal: 7, WindowCorrect: 4})
+	store.InsertUnlock(ctx, &Unlock{Kind: "fighter", Ref: "krillin", Source: "power_level 500"})
+	store.CreateDailyResult(ctx, &DailyResult{Day: "2026-07-13", QuestionIDs: []int64{qID}, Answered: 5, Correct: 5})
+	ch := store.addChapter(QuestChapter{Saga: "saiyan", Chapter: 1, Progress: 8})
+	store.settings.LevelOverride = map[string]int{"multiplication": 7}
+
+	if err := svc.ResetProgress(ctx); err != nil {
+		t.Fatalf("ResetProgress: %v", err)
+	}
+
+	// Progress is gone.
+	if len(store.attempts) != 0 {
+		t.Fatalf("attempts not cleared: %d", len(store.attempts))
+	}
+	if len(store.sessions) != 0 {
+		t.Fatalf("sessions not cleared: %d", len(store.sessions))
+	}
+	if len(store.unlocks) != 0 {
+		t.Fatalf("unlocks not cleared: %d", len(store.unlocks))
+	}
+	if len(store.daily) != 0 {
+		t.Fatalf("daily not cleared: %d", len(store.daily))
+	}
+	for skill, s := range store.skillStates {
+		if s.Level != 1 || s.XP != 0 || s.Streak != 0 || s.WrongRun != 0 || s.WindowTotal != 0 || s.WindowCorrect != 0 {
+			t.Fatalf("skill_state %s not reset: %+v", skill, s)
+		}
+	}
+	if store.chapters[ch.ID].Progress != 0 || store.chapters[ch.ID].CompletedAt != nil {
+		t.Fatalf("chapter progress not reset: %+v", store.chapters[ch.ID])
+	}
+	if len(store.settings.LevelOverride) != 0 {
+		t.Fatalf("level_override not cleared: %+v", store.settings.LevelOverride)
+	}
+	// Power level is back to the floor of 100.
+	if p, _ := svc.Profile(ctx); p.PowerLevel != 100 {
+		t.Fatalf("power level = %d after reset, want 100", p.PowerLevel)
+	}
+
+	// The question bank survives (times_served zeroed but the row stays).
+	if _, ok := store.questions[qID]; !ok {
+		t.Fatal("question bank row was deleted by reset")
+	}
+	if store.questions[qID].TimesServed != 0 {
+		t.Fatalf("times_served = %d, want 0", store.questions[qID].TimesServed)
+	}
+}

@@ -405,6 +405,18 @@ func (s *Service) SetQuestionRetired(ctx context.Context, id int64, retired bool
 	return s.store.SetQuestionRetired(ctx, id, retired)
 }
 
+// ---- admin ----
+
+// ResetProgress wipes all player progress back to a fresh-start state (see
+// Store.ResetProgress for exactly what's cleared vs preserved).
+func (s *Service) ResetProgress(ctx context.Context) error {
+	if err := s.store.ResetProgress(ctx); err != nil {
+		return fmt.Errorf("reset progress: %w", err)
+	}
+	s.log.Warn("progress reset to zero")
+	return nil
+}
+
 // ---- export ----
 
 func (s *Service) Export(ctx context.Context) (map[string]any, error) {
