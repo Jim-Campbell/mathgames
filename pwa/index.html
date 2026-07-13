@@ -1,5 +1,986 @@
-<!doctype html>
-<html>
-<head><meta charset="utf-8"><title>mathgames</title></head>
-<body>mathgames</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1c">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b0e1a'/%3E%3Ccircle cx='50' cy='50' r='34' fill='%23ff8c1a'/%3E%3C/svg%3E">
+<title>DBZ Math Training</title>
+<style>
+:root {
+  --bg: #0a0e1c; --card: #141b30; --card2: #1b2440; --text: #f4f2ea; --muted: #8891b3;
+  --line: #2a3357; --orange: #ff8c1a; --orange-deep: #ff6a00; --gold: #ffd54a; --red: #ff5252;
+  --green: #35d488; --blue: #4fc3f7; --purple: #b388ff; --common: #8891b3; --rare: #4fc3f7;
+  --epic: #b388ff; --legendary: #ffd54a; --shadow: 0 6px 24px rgba(0,0,0,.55);
+}
+* { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(ellipse at 50% -10%, #1b2a52 0%, #0a0e1c 55%) fixed;
+  color: var(--text); overscroll-behavior-y: contain;
+}
+button, input, select { font-family: inherit; }
+header {
+  position: sticky; top: 0; z-index: 8; display: flex; justify-content: space-between; align-items: center;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: rgba(10,14,28,.85); backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+header h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: .02em; cursor: pointer; color: var(--gold); }
+header h1 span { color: var(--orange); }
+#muteBtn { background: none; border: none; font-size: 1.3rem; cursor: pointer; padding: 6px; min-width: 44px; min-height: 44px; }
+main { max-width: 760px; margin: 0 auto; padding: 16px 16px 96px; min-height: 100%; }
+#tabbar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 8; display: flex; background: rgba(10,14,28,.92);
+  backdrop-filter: blur(6px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+}
+#tabbar button {
+  flex: 1; background: none; border: none; color: var(--muted); padding: 10px 4px 8px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; font-size: .72rem; font-weight: 600;
+}
+#tabbar button.on { color: var(--orange); }
+.tab-icon { font-size: 1.4rem; }
+h2 { font-size: 1.15rem; margin-bottom: 10px; color: var(--text); }
+h3 { font-size: .82rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 8px; }
+.card { background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 16px; margin-bottom: 12px; border: 1px solid var(--line); }
+.empty { text-align: center; color: var(--muted); padding: 40px 12px; }
+.muted { color: var(--muted); }
+button.btn {
+  border: none; border-radius: 12px; padding: 12px 16px; font-size: .9rem; font-weight: 700; cursor: pointer;
+  background: var(--card2); color: var(--text); min-height: 44px;
+}
+button.btn.primary { background: linear-gradient(135deg, var(--orange), var(--orange-deep)); color: #1a0e00; }
+button.btn.ghost { background: none; color: var(--muted); }
+button.btn.sm { padding: 8px 12px; font-size: .78rem; min-height: 36px; }
+button.btn:disabled { opacity: .4; cursor: default; }
+label.f { display: block; font-size: .75rem; color: var(--muted); margin: 12px 0 4px; }
+input[type=text], input[type=number] {
+  width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+  color: var(--text); font-size: 16px;
+}
+.scrollx { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+dialog {
+  border: none; border-radius: 16px; background: var(--card); color: var(--text);
+  width: min(480px, calc(100vw - 24px)); max-height: 86vh; overflow-y: auto; padding: 20px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6); margin: auto; border: 1px solid var(--line);
+}
+dialog::backdrop { background: rgba(0,0,0,.6); }
+.dlg-actions { display: flex; gap: 8px; margin-top: 18px; }
+.dlg-actions .btn { flex: 1; }
+#toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--card2);
+  color: var(--text); padding: 10px 18px; border-radius: 20px; font-size: .85rem; opacity: 0;
+  transition: opacity .25s; pointer-events: none; z-index: 40; max-width: 90vw; border: 1px solid var(--line);
+}
+#toast.show { opacity: 1; }
+
+/* ---- home ---- */
+.power-block { position: relative; text-align: center; padding: 34px 0 20px; }
+.power-aura {
+  position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); width: 220px; height: 220px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(255,140,26,.35), transparent 70%); filter: blur(4px);
+  animation: aura-pulse 2.4s ease-in-out infinite;
+}
+@keyframes aura-pulse { 0%,100% { transform: translate(-50%,-50%) scale(.92); opacity: .7; } 50% { transform: translate(-50%,-50%) scale(1.08); opacity: 1; } }
+.power-num { position: relative; font-size: 3.2rem; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--gold); text-shadow: 0 0 24px rgba(255,213,74,.6); }
+.power-label { position: relative; font-size: .8rem; letter-spacing: .18em; color: var(--muted); margin-top: 2px; }
+.daily-card {
+  background: linear-gradient(135deg, var(--card2), var(--card)); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; margin-bottom: 14px; cursor: pointer; box-shadow: var(--shadow);
+}
+.daily-card.done { border-color: var(--green); }
+.dc-title { font-weight: 800; font-size: 1rem; }
+.dc-sub { color: var(--muted); font-size: .85rem; margin-top: 4px; }
+.train-btn {
+  display: block; width: 100%; padding: 18px; border: none; border-radius: 16px; font-size: 1.2rem; font-weight: 900;
+  color: #1a0e00; background: linear-gradient(135deg, var(--gold), var(--orange-deep)); cursor: pointer; margin-bottom: 6px;
+  box-shadow: 0 4px 20px rgba(255,140,26,.4); min-height: 64px;
+}
+.skill-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.skill-chip {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: left;
+  cursor: pointer; color: var(--text); min-height: 64px;
+}
+.sc-name { font-weight: 700; font-size: .88rem; }
+.sc-level { color: var(--orange); font-size: .78rem; margin-top: 4px; font-weight: 700; }
+.unlock-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+.unlock-mini { text-align: center; flex-shrink: 0; width: 68px; }
+.um-name { font-size: .68rem; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-streak { font-weight: 700; margin-bottom: 10px; }
+.cal-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.cal-cell { aspect-ratio: 1; border-radius: 4px; background: var(--line); }
+.cal-cell.cal-perfect { background: var(--green); }
+.cal-cell.cal-partial { background: var(--gold); }
+
+/* ---- play ---- */
+.play-wrap { max-width: 560px; margin: 0 auto; }
+.play-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.end-btn { background: var(--card2); border: none; color: var(--muted); width: 44px; height: 44px; border-radius: 50%; font-size: 1.1rem; cursor: pointer; }
+.streak { font-weight: 800; font-size: 1rem; padding: 6px 12px; border-radius: 20px; background: var(--card2); }
+.streak.flame-3 { color: var(--gold); box-shadow: 0 0 12px rgba(255,213,74,.4); }
+.streak.flame-6 { color: var(--orange); box-shadow: 0 0 18px rgba(255,140,26,.6); animation: flame-flicker 1s infinite; }
+.streak.flame-11 { color: var(--red); box-shadow: 0 0 26px rgba(255,82,82,.7); animation: flame-flicker .6s infinite; }
+@keyframes flame-flicker { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.xp-earned { font-weight: 800; color: var(--gold); }
+.qcard { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px 18px; text-align: center; margin-bottom: 16px; transition: box-shadow .2s; }
+.prompt { font-size: 1.6rem; font-weight: 800; line-height: 1.3; }
+.fraction-bar { width: 100%; max-width: 320px; margin: 0 auto 16px; display: block; }
+.seq-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
+.seq-box { min-width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; background: var(--card2); border-radius: 10px; font-weight: 800; font-size: 1.1rem; }
+.seq-box.blank { background: var(--orange-deep); color: #fff; }
+.logic-grid { border-collapse: collapse; margin: 0 auto 14px; }
+.logic-grid td { border: 1px solid var(--line); padding: 8px 12px; font-size: .85rem; }
+.grid-raw { text-align: left; white-space: pre-wrap; font-size: .75rem; color: var(--muted); background: var(--bg); padding: 8px; border-radius: 8px; }
+.answer-display { text-align: center; font-size: 2.2rem; font-weight: 900; min-height: 56px; color: var(--gold); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+.numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.key {
+  background: var(--card2); border: 1px solid var(--line); border-radius: 12px; color: var(--text);
+  font-size: 1.4rem; font-weight: 700; min-height: 64px; cursor: pointer;
+}
+.key.key-back { color: var(--red); }
+.key.key-ok { background: linear-gradient(135deg, var(--green), #1fae6b); color: #04241a; }
+.two-field, .frac-field { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; justify-content: center; }
+.two-field .field, .frac-field .field {
+  flex: 1; max-width: 140px; background: var(--card2); border: 2px solid var(--line); border-radius: 12px;
+  padding: 10px; text-align: center; cursor: pointer; min-height: 64px;
+}
+.two-field .field.active, .frac-field .field.active { border-color: var(--orange); }
+.flabel { font-size: .68rem; color: var(--muted); text-transform: uppercase; }
+.fval { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.frac-field .field { font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.frac-bar-divider { width: 36px; height: 4px; background: var(--text); border-radius: 2px; }
+.mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mc-btn { min-height: 64px; border-radius: 12px; border: 2px solid var(--line); background: var(--card2); color: var(--text); font-size: 1.1rem; font-weight: 700; cursor: pointer; padding: 10px; }
+.mc-btn.sel { border-color: var(--orange); background: rgba(255,140,26,.18); }
+.text-input-wrap { display: flex; gap: 10px; }
+.text-input-wrap input { flex: 1; }
+.feedback { border-radius: 14px; padding: 16px; margin-top: 14px; text-align: center; }
+.feedback.correct { background: rgba(53,212,136,.14); border: 1px solid var(--green); }
+.feedback.wrong { background: rgba(255,82,82,.1); border: 1px solid var(--red); }
+.fb-title { font-weight: 800; font-size: 1.1rem; margin-bottom: 6px; }
+.feedback.correct .fb-title { color: var(--green); }
+.feedback.wrong .fb-title { color: var(--red); }
+.xp-fly { font-weight: 800; color: var(--gold); font-size: 1.3rem; animation: xp-float .9s ease-out; }
+@keyframes xp-float { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 1; } }
+.fb-answer { font-weight: 700; margin: 8px 0 4px; }
+.fb-explain { color: var(--muted); font-size: .92rem; line-height: 1.4; margin-bottom: 12px; }
+.qcard.correct { box-shadow: 0 0 0 3px var(--green); }
+.qcard.wrong { animation: shake .4s; box-shadow: 0 0 0 3px var(--red); }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.end-wrap { text-align: center; padding: 40px 12px; }
+.end-stat { font-size: 1.1rem; font-weight: 700; margin: 8px 0; }
+.wordle-grid { font-size: 1.8rem; letter-spacing: 6px; margin: 16px 0; }
+.end-wrap .btn { margin: 6px auto; display: block; max-width: 260px; }
+
+/* ---- overlay ---- */
+#overlayRoot { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(4,6,14,.88); padding: 20px; }
+#overlayRoot.show { display: flex; }
+.ov-card { text-align: center; position: relative; }
+.ov-card h2 { font-size: 1.8rem; font-weight: 900; color: var(--gold); margin-bottom: 12px; text-shadow: 0 0 20px rgba(255,213,74,.6); }
+.ov-card.over9000 h2 { color: var(--red); font-size: 2.4rem; text-shadow: 0 0 30px rgba(255,82,82,.8); }
+.ov-flash { position: absolute; inset: -60px; border-radius: 50%; background: radial-gradient(circle, rgba(255,213,74,.5), transparent 65%); animation: flash-pop .6s ease-out; z-index: -1; }
+.ov-flash.big { background: radial-gradient(circle, rgba(255,82,82,.6), transparent 65%); }
+@keyframes flash-pop { 0% { transform: scale(.3); opacity: 0; } 40% { opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+.ov-name { font-weight: 800; font-size: 1.2rem; margin: 10px 0 4px; }
+.ov-rarity { display: inline-block; padding: 2px 12px; border-radius: 10px; font-size: .75rem; font-weight: 700; text-transform: uppercase; }
+.ov-rarity.common { background: var(--common); color: #1a1a1a; } .ov-rarity.rare { background: var(--rare); color: #04203a; }
+.ov-rarity.epic { background: var(--epic); color: #22093f; } .ov-rarity.legendary { background: var(--legendary); color: #3a2600; }
+.ov-sub { color: var(--muted); margin-bottom: 14px; }
+.badge-icon { font-size: 3rem; margin: 10px 0; }
+.ov-card .btn { margin-top: 16px; min-width: 180px; }
+
+/* ---- collection ---- */
+.db-tray { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
+.ball { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--muted); }
+.ball.glow { background: radial-gradient(circle at 35% 30%, #fff2c4, var(--orange) 70%); color: #3a1e00; box-shadow: 0 0 14px rgba(255,213,74,.7); }
+.wish-btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--purple), #6a3fd0); color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer; margin-bottom: 18px; min-height: 56px; }
+.wish-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.wish-pick { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; color: var(--text); font-size: .72rem; cursor: pointer; }
+.fighter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.fighter-card { background: var(--card); border-radius: 12px; padding: 10px; text-align: center; border: 2px solid var(--line); }
+.fighter-card.common { border-color: var(--common); } .fighter-card.rare { border-color: var(--rare); }
+.fighter-card.epic { border-color: var(--epic); } .fighter-card.legendary { border-color: var(--legendary); }
+.fighter-card.locked { opacity: .6; border-color: var(--line); }
+.fc-name { font-size: .74rem; font-weight: 700; margin-top: 4px; }
+.fc-rarity { font-size: .62rem; text-transform: uppercase; color: var(--muted); }
+.fc-hint { font-size: .64rem; color: var(--muted); margin-top: 2px; }
+.fighter-svg .aura-ring { animation: aura-pulse 2.4s ease-in-out infinite; }
+
+/* ---- quests ---- */
+.saga { margin-bottom: 20px; }
+.saga.locked h2 { color: var(--muted); }
+.chapters { display: flex; flex-direction: column; gap: 10px; }
+.chapter-card { text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer; color: var(--text); min-height: 64px; }
+.chapter-card.locked { opacity: .5; }
+.chapter-card.done { border-color: var(--green); }
+.ch-num { font-size: .7rem; color: var(--muted); text-transform: uppercase; }
+.ch-title { font-weight: 700; margin: 2px 0 8px; }
+.bar { background: var(--line); border-radius: 6px; height: 10px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--orange); }
+.ch-progress { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+.ch-done { color: var(--green); font-weight: 700; font-size: .8rem; margin-top: 6px; }
+.story-text { color: var(--muted); line-height: 1.6; margin: 12px 0; white-space: pre-wrap; }
+
+/* ---- parents ---- */
+.day-chart { width: 100%; height: auto; }
+.ptab { width: 100%; border-collapse: collapse; font-size: .8rem; min-width: 480px; }
+.ptab th, .ptab td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
+.ptab th { color: var(--muted); font-size: .7rem; text-transform: uppercase; }
+.miss-row { border-bottom: 1px solid var(--line); padding: 10px 0; }
+.miss-prompt { font-weight: 700; font-size: .88rem; }
+.miss-detail { font-size: .76rem; color: var(--muted); margin-top: 2px; }
+.bank-skill { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 10px 0; flex-wrap: wrap; }
+.bank-skill-name { font-weight: 700; font-size: .82rem; min-width: 120px; }
+.bank-levels { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.bank-lvl { background: var(--card2); border-radius: 6px; font-size: .62rem; text-align: center; padding: 3px 5px; min-width: 30px; }
+.bank-lvl.low { background: rgba(255,82,82,.2); color: var(--red); }
+.qreview-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 8px 0; }
+.qreview-row.retired { opacity: .5; }
+.qr-main { font-size: .8rem; }
+.override-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; }
+.override-row input { width: 70px; }
+.settings-form { display: flex; flex-direction: column; }
+.version { text-align: center; color: var(--muted); font-size: .72rem; margin-top: 24px; padding-bottom: 20px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 onclick="go('home')"><span>DBZ</span> Math</h1>
+  <button id="muteBtn" onclick="toggleMute()">🔊</button>
+</header>
+<main id="main"></main>
+<nav id="tabbar"></nav>
+<div id="toast"></div>
+<dialog id="dlg"></dialog>
+<div id="overlayRoot"></div>
+
+<script>
+'use strict';
+
+// ---------- registries (mirror internal/game/skills.go) ----------
+const SKILLS = [
+  { slug: 'multiplication', name: 'Multiplication' },
+  { slug: 'division', name: 'Division' },
+  { slug: 'addsub', name: 'Addition & Subtraction' },
+  { slug: 'fractions', name: 'Fractions' },
+  { slug: 'place_value', name: 'Place Value' },
+  { slug: 'patterns', name: 'Patterns' },
+  { slug: 'word_problems', name: 'Word Problems' },
+  { slug: 'logic', name: 'Logic Puzzles' },
+];
+const SKILL_NAME = Object.fromEntries(SKILLS.map(s => [s.slug, s.name]));
+const SAGA_NAMES = { saiyan: 'Saiyan Saga', namek: 'Namek Saga', android: 'Android Saga', cell: 'Cell Saga', buu: 'Majin Buu Saga' };
+const RARITY_COLOR = { common: '#8891b3', rare: '#4fc3f7', epic: '#b388ff', legendary: '#ffd54a' };
+
+// ---------- state ----------
+const S = {
+  view: 'home',
+  profile: null, collection: null, quests: null, settingsData: null, parents: null, questions: [],
+  daily: null,
+  session: null, current: null, currentStart: 0, feedback: null, locked: false,
+  overlayQueue: [], currentOverlay: null,
+  numpad: '', numpadVals: ['', ''], numpadField: 0, mcSelected: -1, textVal: '',
+  muted: localStorage.getItem('mg_mute') === '1',
+  seenOver9000: localStorage.getItem('mg_seen_over9000') === '1',
+};
+
+// ---------- api ----------
+function apiKey() { return localStorage.getItem('mg_api_key') || ''; }
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({ Authorization: 'Bearer ' + apiKey() }, opts.headers || {});
+  if (opts.body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.body); }
+  const res = await fetch('/api' + path, opts);
+  if (res.status === 401) { askKey(); throw new Error('unauthorized'); }
+  if (!res.ok) {
+    let msg = 'request failed';
+    try { msg = (await res.json()).error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+function askKey() {
+  const k = prompt('Enter the DBZ Math API key:');
+  if (k) { localStorage.setItem('mg_api_key', k.trim()); onRoute(); }
+}
+
+// ---------- utils ----------
+const $ = s => document.querySelector(s);
+function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function fmtInt(n) { return Number(n).toLocaleString('en-US'); }
+function toast(msg, ms = 2600) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
+}
+function openDialog(html) { const d = $('#dlg'); d.innerHTML = html; if (!d.open) d.showModal(); }
+function closeDialog() { const d = $('#dlg'); if (d.open) d.close(); }
+function fmtLoose(v) {
+  if (v == null) return '';
+  if (typeof v === 'object') {
+    if ('value' in v) return String(v.value);
+    if ('values' in v) return v.values.join(', ');
+    if ('num' in v && 'den' in v) return v.num + '/' + v.den;
+    if ('index' in v) return 'choice ' + v.index;
+    return JSON.stringify(v);
+  }
+  return String(v);
+}
+
+// ---------- sound (Web Audio synthesis only) ----------
+const sfx = (() => {
+  let ctx;
+  function actx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function tone(freq, start, dur, type, peak) {
+    if (S.muted) return;
+    const c = actx(), osc = c.createOscillator(), gain = c.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, c.currentTime + start);
+    gain.gain.setValueAtTime(0, c.currentTime + start);
+    gain.gain.linearRampToValueAtTime(peak || .18, c.currentTime + start + .02);
+    gain.gain.exponentialRampToValueAtTime(.001, c.currentTime + start + dur);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(c.currentTime + start); osc.stop(c.currentTime + start + dur + .02);
+  }
+  function sweep(f0, f1, start, dur, type, peak) {
+    if (S.muted) return;
+    const c = actx(), osc = c.createOscillator(), gain = c.createGain();
+    osc.type = type || 'sawtooth';
+    osc.frequency.setValueAtTime(f0, c.currentTime + start);
+    osc.frequency.exponentialRampToValueAtTime(f1, c.currentTime + start + dur);
+    gain.gain.setValueAtTime(0, c.currentTime + start);
+    gain.gain.linearRampToValueAtTime(peak || .14, c.currentTime + start + dur * .3);
+    gain.gain.exponentialRampToValueAtTime(.001, c.currentTime + start + dur);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(c.currentTime + start); osc.stop(c.currentTime + start + dur + .02);
+  }
+  return {
+    unlockAudio() { actx(); },
+    correct() { tone(523.25, 0, .14, 'sine', .2); tone(784, .09, .18, 'sine', .22); },
+    wrong() { tone(140, 0, .25, 'sine', .16); tone(105, .12, .32, 'sine', .12); },
+    streak() { sweep(300, 900, 0, .35, 'sawtooth', .1); },
+    levelup() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * .09, .18, 'triangle', .2)); },
+    unlockFanfare() { tone(392, 0, .12, 'square', .13); tone(523, .08, .12, 'square', .13); tone(659, .16, .32, 'square', .16); sweep(700, 1500, .05, .4, 'sine', .07); },
+    over9000() { [261, 329, 392, 523, 659, 784, 1047].forEach((f, i) => tone(f, i * .07, .22, 'sawtooth', .18)); sweep(200, 2200, .1, .9, 'sawtooth', .09); },
+  };
+})();
+document.addEventListener('pointerdown', function once() { sfx.unlockAudio(); document.removeEventListener('pointerdown', once); }, { once: true });
+function toggleMute() { S.muted = !S.muted; localStorage.setItem('mg_mute', S.muted ? '1' : '0'); renderMuteBtn(); render(); }
+function renderMuteBtn() { $('#muteBtn').textContent = S.muted ? '🔇' : '🔊'; }
+
+// ---------- SVG helpers ----------
+function hueFromSlug(slug) { let h = 0; for (const c of String(slug)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; }
+function fighterSVG(f, size) {
+  size = size || 80;
+  const hue = hueFromSlug(f.slug || f.ref || f.name || 'x');
+  const skin = 'hsl(' + hue + ',65%,58%)';
+  const hair = 'hsl(' + ((hue + 40) % 360) + ',55%,28%)';
+  const aura = RARITY_COLOR[f.rarity] || RARITY_COLOR.common;
+  const locked = !f.unlocked;
+  return '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" class="fighter-svg">' +
+    (!locked ? '<circle cx="50" cy="55" r="42" fill="' + aura + '" opacity=".22" class="aura-ring"/>' : '') +
+    '<g opacity="' + (locked ? '.5' : '1') + '">' +
+    '<path d="M30 80 Q50 56 70 80 L70 94 L30 94 Z" fill="' + (locked ? '#333' : skin) + '"/>' +
+    '<circle cx="50" cy="46" r="17" fill="' + (locked ? '#333' : skin) + '"/>' +
+    '<path d="M33 40 Q30 18 50 18 Q72 20 67 40 Q60 25 50 29 Q40 24 33 40 Z" fill="' + (locked ? '#222' : hair) + '"/>' +
+    '</g>' +
+    (locked ? '<text x="50" y="60" text-anchor="middle" font-size="26" fill="#6b7396" font-weight="800">?</text>' : '') +
+    '</svg>';
+}
+function fractionBarSVG(parts, shaded) {
+  parts = Math.max(1, parts | 0);
+  const w = 260, h = 46, gap = 3, cell = (w - gap * parts) / parts;
+  let rects = '';
+  for (let i = 0; i < parts; i++) {
+    rects += '<rect x="' + (i * (cell + gap)) + '" y="0" width="' + cell + '" height="' + h + '" rx="6" fill="' + (i < shaded ? 'var(--orange)' : 'var(--line)') + '"/>';
+  }
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" class="fraction-bar">' + rects + '</svg>';
+}
+function sequenceHTML(seq) {
+  return '<div class="seq-row">' + seq.map(v => '<div class="seq-box ' + (v === null ? 'blank' : '') + '">' + (v === null ? '?' : v) + '</div>').join('') + '</div>';
+}
+function gridDisplayHTML(grid) {
+  try {
+    if (grid && Array.isArray(grid.rows)) {
+      return '<table class="logic-grid"><tbody>' + grid.rows.map(row =>
+        '<tr>' + (Array.isArray(row) ? row : [row]).map(c => '<td>' + esc(c) + '</td>').join('') + '</tr>'
+      ).join('') + '</tbody></table>';
+    }
+  } catch (e) {}
+  return '<pre class="grid-raw">' + esc(JSON.stringify(grid, null, 1)) + '</pre>';
+}
+
+// ---------- routing ----------
+function currentRoute() { const h = location.hash || '#/home'; return h.slice(2) || 'home'; }
+function go(view) {
+  if (location.hash !== '#/' + view) location.hash = '#/' + view;
+  else onRoute();
+}
+window.addEventListener('hashchange', onRoute);
+async function onRoute() {
+  S.view = currentRoute();
+  render();
+  try {
+    if (S.view === 'home') await loadHome();
+    else if (S.view === 'collection') await loadCollection();
+    else if (S.view === 'quests') await loadQuests();
+    else if (S.view === 'parents') await loadParents();
+    render();
+  } catch (e) { if (e.message !== 'unauthorized') toast('Error: ' + e.message); }
+}
+
+async function loadHome() {
+  const [profile, daily, collection] = await Promise.all([api('/profile'), api('/daily'), api('/collection')]);
+  S.profile = profile; S.daily = daily; S.collection = collection;
+}
+async function loadCollection() { S.collection = await api('/collection'); }
+async function loadQuests() { S.quests = await api('/quests'); }
+async function loadParents() {
+  const [summary, settings, questions] = await Promise.all([
+    api('/parents/summary?days=30'), api('/settings'), api('/questions?source=ai'),
+  ]);
+  S.parents = summary; S.settingsData = settings; S.questions = questions || [];
+}
+
+// ---------- render dispatch ----------
+function render() {
+  renderTabBar();
+  const m = $('#main');
+  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents }[S.view] || renderHome)(m);
+  renderOverlay();
+}
+function renderTabBar() {
+  const bar = $('#tabbar');
+  if (S.view === 'play') { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const tabs = [['home', '🏠', 'Home'], ['collection', '🎴', 'Collection'], ['quests', '📜', 'Quests']];
+  bar.innerHTML = tabs.map(([id, icon, label]) =>
+    '<button class="' + (S.view === id ? 'on' : '') + '" onclick="go(\'' + id + '\')"><span class="tab-icon">' + icon + '</span><span>' + label + '</span></button>'
+  ).join('');
+}
+
+// ---------- HOME ----------
+let lastPowerShown = null;
+function renderHome(m) {
+  const p = S.profile, d = S.daily;
+  if (!p) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
+  m.innerHTML =
+    '<div class="power-block"><div class="power-aura"></div><div class="power-num" id="powerNum">' + fmtInt(p.power_level) + '</div><div class="power-label">POWER LEVEL</div></div>' +
+    dailyCardHTML(d) +
+    '<button class="train-btn" onclick="startTraining(\'mixed\')">⚡ TRAIN</button>' +
+    '<h3>Skills</h3><div class="skill-chips">' + SKILLS.map(sk =>
+      '<button class="skill-chip" onclick="startTraining(\'' + sk.slug + '\')"><div class="sc-name">' + sk.name + '</div><div class="sc-level">Lv ' + (p.levels[sk.slug] || 1) + '</div></button>'
+    ).join('') + '</div>' +
+    recentUnlocksHTML();
+  animatePowerNum(p.power_level);
+}
+function dailyCardHTML(d) {
+  if (!d) return '';
+  if (d.completed) return '<div class="daily-card done" onclick="showDailySummaryDialog()"><div class="dc-title">✅ Daily Complete</div><div class="dc-sub">' + d.correct + '/' + d.answered + ' correct · 🔥 ' + d.streak + '-day streak</div></div>';
+  if (d.answered > 0) return '<div class="daily-card" onclick="beginDaily()"><div class="dc-title">📅 Daily Challenge</div><div class="dc-sub">Continue — ' + d.answered + '/' + (d.questions ? d.questions.length : 5) + ' done</div></div>';
+  return '<div class="daily-card" onclick="beginDaily()"><div class="dc-title">📅 Daily Challenge</div><div class="dc-sub">Start today’s set · 🔥 ' + d.streak + '-day streak</div></div>';
+}
+function showDailySummaryDialog() {
+  const d = S.daily;
+  openDialog('<h2>Daily Challenge</h2><div class="dc-sub" style="margin-bottom:14px">Today: ' + d.correct + '/' + d.answered + ' correct</div>' + calendarHTML(d.calendar, d.streak));
+}
+function calendarHTML(cal, streak) {
+  const days = (cal || []).slice().sort((a, b) => a.day < b.day ? -1 : 1);
+  return '<div class="cal-streak">🔥 ' + streak + '-day streak</div><div class="cal-grid">' + days.map(dd => {
+    const cls = !dd.completed ? '' : (dd.correct === dd.total ? 'cal-perfect' : 'cal-partial');
+    return '<div class="cal-cell ' + cls + '" title="' + dd.day + ': ' + dd.correct + '/' + dd.total + '"></div>';
+  }).join('') + '</div>';
+}
+function recentUnlocksHTML() {
+  if (!S.collection) return '';
+  const recent = S.collection.fighters.filter(f => f.unlocked).sort((a, b) => (b.unlocked_at || '').localeCompare(a.unlocked_at || '')).slice(0, 6);
+  if (!recent.length) return '';
+  return '<h3>Recent Unlocks</h3><div class="unlock-strip">' + recent.map(f =>
+    '<div class="unlock-mini">' + fighterSVG(f, 56) + '<div class="um-name">' + esc(f.name) + '</div></div>'
+  ).join('') + '</div>';
+}
+function animatePowerNum(target) {
+  const el = $('#powerNum'); if (!el) return;
+  const start = lastPowerShown == null ? target : lastPowerShown;
+  lastPowerShown = target;
+  if (start === target) { el.textContent = fmtInt(target); return; }
+  const dur = 800, t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    el.textContent = fmtInt(Math.round(start + (target - start) * p));
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ---------- PLAY: session lifecycle ----------
+async function startTraining(skill) {
+  const sess = await api('/sessions', { method: 'POST', body: { mode: 'training' } });
+  S.session = { id: sess.id, mode: 'training', skill, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, bankLowWarned: new Set() };
+  go('play');
+  await loadNextQuestion();
+}
+async function startQuest(chapter) {
+  const sess = await api('/sessions', { method: 'POST', body: { mode: 'quest' } });
+  S.session = { id: sess.id, mode: 'quest', chapter, skillCycle: chapter.requirement.skills, skillCycleIdx: 0, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, bankLowWarned: new Set() };
+  go('play');
+  await loadNextQuestion();
+}
+async function beginDaily() {
+  const sess = await api('/sessions', { method: 'POST', body: { mode: 'daily' } });
+  const d = await api('/daily');
+  S.daily = d;
+  S.session = { id: sess.id, mode: 'daily', queue: d.questions || [], qIndex: 0, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, dailyResults: [] };
+  go('play');
+  await loadNextQuestion();
+}
+function resetNumpad() { S.numpad = ''; S.numpadVals = ['', '']; S.numpadField = 0; S.mcSelected = -1; S.textVal = ''; }
+async function loadNextQuestion() {
+  const sess = S.session;
+  if (!sess || sess.ended || sess.dailyDone) return;
+  if (sess.mode === 'daily') {
+    if (sess.qIndex >= sess.queue.length) return finishDailySession();
+    S.current = sess.queue[sess.qIndex];
+  } else {
+    let skill = sess.mode === 'quest' ? sess.skillCycle[sess.skillCycleIdx % sess.skillCycle.length] : sess.skill;
+    if (sess.mode === 'quest') sess.skillCycleIdx++;
+    try {
+      const res = await api('/next?skill=' + encodeURIComponent(skill) + '&count=1&session_id=' + sess.id);
+      S.current = res.questions[0];
+      if (res.bank_low && !sess.bankLowWarned.has(skill)) { sess.bankLowWarned.add(skill); toast('Running low on questions for ' + (SKILL_NAME[skill] || skill) + ' — ask a grown-up to generate more!'); }
+    } catch (e) { toast('Error: ' + e.message); return; }
+  }
+  resetNumpad();
+  S.locked = false;
+  S.currentStart = Date.now();
+  render();
+}
+
+// ---------- PLAY: input handlers ----------
+function padDigit(d) {
+  if (S.locked || !S.current) return;
+  const kind = S.current.payload.kind;
+  if (kind === 'numeric') { if (S.numpad.length < 7) S.numpad += d; }
+  else { const i = S.numpadField; if (S.numpadVals[i].length < 5) S.numpadVals[i] += d; }
+  render();
+}
+function padBack() {
+  if (S.locked || !S.current) return;
+  const kind = S.current.payload.kind;
+  if (kind === 'numeric') S.numpad = S.numpad.slice(0, -1);
+  else { const i = S.numpadField; S.numpadVals[i] = S.numpadVals[i].slice(0, -1); }
+  render();
+}
+function setField(i) { S.numpadField = i; render(); }
+function selectMC(i) { if (S.locked) return; S.mcSelected = i; submitAnswer(); }
+async function submitAnswer() {
+  if (S.locked || !S.current) return;
+  const q = S.current, kind = q.payload.kind;
+  let given;
+  if (kind === 'numeric') { if (S.numpad === '') return; given = { value: parseInt(S.numpad, 10) }; }
+  else if (kind === 'numeric2') { if (!S.numpadVals[0] || !S.numpadVals[1]) return; given = { values: [parseInt(S.numpadVals[0], 10), parseInt(S.numpadVals[1], 10)] }; }
+  else if (kind === 'fraction') { if (!S.numpadVals[0] || !S.numpadVals[1]) return; given = { num: parseInt(S.numpadVals[0], 10), den: parseInt(S.numpadVals[1], 10) }; }
+  else if (kind === 'mc') { if (S.mcSelected < 0) return; given = { index: S.mcSelected }; }
+  else if (kind === 'text') { if (!S.textVal.trim()) return; given = { value: S.textVal.trim() }; }
+  else return;
+  S.locked = true;
+  const elapsed = Date.now() - S.currentStart;
+  try {
+    const result = await api('/attempts', { method: 'POST', body: { session_id: S.session.id, question_id: q.id, given, elapsed_ms: elapsed } });
+    afterAttempt(result, elapsed);
+  } catch (e) { S.locked = false; toast('Error: ' + e.message); render(); }
+}
+function formatAnswer(kind, ans) {
+  if (kind === 'numeric') return ans.value;
+  if (kind === 'numeric2') return ans.values.join(' , ');
+  if (kind === 'fraction') return ans.num + '/' + ans.den;
+  if (kind === 'mc') return S.current.payload.choices[ans.index];
+  if (kind === 'text') return ans.value;
+  return JSON.stringify(ans);
+}
+
+// ---------- PLAY: attempt result / feedback / overlays ----------
+function playFeedbackSfx(result) {
+  if (result.correct) { sfx.correct(); if (result.streak === 3 || result.streak === 6 || result.streak === 11) setTimeout(() => sfx.streak(), 150); }
+  else sfx.wrong();
+}
+function afterAttempt(result, elapsedMs) {
+  const sess = S.session;
+  sess.xpEarned += result.xp_earned;
+  sess.total++;
+  if (result.correct) sess.correct++;
+  sess.curStreak = result.streak;
+  sess.streakBest = Math.max(sess.streakBest, result.streak);
+  if (sess.mode === 'daily') { sess.dailyResults.push({ correct: result.correct, ms: elapsedMs }); sess.qIndex++; }
+
+  S.feedback = Object.assign({}, result, { dismissable: result.correct });
+  render();
+  playFeedbackSfx(result);
+
+  if (!result.correct) setTimeout(() => { if (S.feedback) { S.feedback.dismissable = true; render(); } }, 2000);
+  else setTimeout(() => continueAfterFeedback(), 1100);
+}
+async function continueAfterFeedback() {
+  if (!S.feedback) return;
+  const result = S.feedback, skill = S.current.skill;
+  S.feedback = null;
+  const overlays = [];
+  if (result.level_changed > 0) overlays.push({ type: 'levelup', skill, level: result.skill_level });
+  if (!S.seenOver9000 && result.power_level_before < 9000 && result.power_level >= 9000) {
+    overlays.push({ type: 'over9000' }); localStorage.setItem('mg_seen_over9000', '1'); S.seenOver9000 = true;
+  }
+  (result.unlocks || []).forEach(u => overlays.push({ type: 'unlock', unlock: u }));
+
+  if (S.session.mode === 'quest') {
+    try {
+      const updated = await api('/quests/' + S.session.chapter.id);
+      const justCompleted = !S.session.chapter.completed_at && updated.completed_at;
+      S.session.chapter = updated;
+      if (justCompleted) overlays.push({ type: 'questcomplete', chapter: updated });
+    } catch (e) {}
+  }
+  S.overlayQueue = overlays;
+  S.locked = false;
+  advanceOverlay();
+}
+function advanceOverlay() {
+  if (S.overlayQueue && S.overlayQueue.length) {
+    S.currentOverlay = S.overlayQueue.shift();
+    const t = S.currentOverlay.type;
+    if (t === 'levelup') sfx.levelup();
+    else if (t === 'unlock') sfx.unlockFanfare();
+    else if (t === 'over9000') sfx.over9000();
+    render();
+  } else {
+    S.currentOverlay = null;
+    render();
+    loadNextQuestion();
+  }
+}
+function finishQuestSession() { S.currentOverlay = null; S.session = null; go('quests'); }
+async function finishDailySession() {
+  S.session.ended = true; S.session.dailyDone = true;
+  S.daily = await api('/daily');
+  render();
+}
+
+// ---------- PLAY: end session ----------
+function confirmEndSession() {
+  openDialog('<h2>End session?</h2><p class="muted">Your progress is already saved.</p><div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Keep going</button><button class="btn primary" onclick="closeDialog(); doEndSession()">End</button></div>');
+}
+async function doEndSession() {
+  try { await api('/sessions/' + S.session.id + '/end', { method: 'POST' }); } catch (e) {}
+  S.session.ended = true; render();
+}
+function trainAgain() {
+  const mode = S.session.mode, skill = S.session.skill;
+  S.session = null;
+  if (mode === 'quest') go('quests'); else startTraining(skill || 'mixed');
+}
+
+// ---------- PLAY: render ----------
+function renderPlay(m) {
+  if (!S.session) { m.innerHTML = '<div class="empty">No active session.<br><br><button class="btn primary" onclick="go(\'home\')">Home</button></div>'; return; }
+  if (S.session.dailyDone) return renderDailyResultsScreen(m);
+  if (S.session.ended) return renderEndScreen(m);
+  renderQuestionScreen(m, S.session);
+}
+function playHeader(sess) {
+  const c = sess.curStreak || 0;
+  const flame = c >= 11 ? 'flame-11' : c >= 6 ? 'flame-6' : c >= 3 ? 'flame-3' : '';
+  return '<div class="play-header"><button class="end-btn" onclick="confirmEndSession()">✕</button><div class="streak ' + flame + '">🔥 ' + c + '</div><div class="xp-earned">⚡ ' + sess.xpEarned + '</div></div>';
+}
+function renderQuestionScreen(m, sess) {
+  const q = S.current;
+  if (!q) { m.innerHTML = '<div class="play-wrap">' + playHeader(sess) + '<div class="empty">Loading next question…</div></div>'; return; }
+  const payload = q.payload;
+  let displayHTML = '';
+  if (payload.display) {
+    if (payload.display.fraction_bar) displayHTML = fractionBarSVG(payload.display.fraction_bar.parts, payload.display.fraction_bar.shaded);
+    else if (payload.display.sequence) displayHTML = sequenceHTML(payload.display.sequence);
+    else if (payload.display.grid) displayHTML = gridDisplayHTML(payload.display.grid);
+  }
+  let inputHTML = '';
+  if (payload.kind === 'numeric') inputHTML = '<div class="answer-display">' + (S.numpad || '&nbsp;') + '</div>' + numpadHTML();
+  else if (payload.kind === 'numeric2') inputHTML = twoFieldHTML(payload.labels || ['a', 'b']) + numpadHTML();
+  else if (payload.kind === 'fraction') inputHTML = fractionFieldHTML() + numpadHTML();
+  else if (payload.kind === 'mc') inputHTML = mcHTML(payload.choices || []);
+  else if (payload.kind === 'text') inputHTML = textHTML();
+
+  const qcardClass = S.feedback ? (S.feedback.correct ? 'correct' : 'wrong') : '';
+  m.innerHTML = '<div class="play-wrap">' + playHeader(sess) +
+    '<div class="qcard ' + qcardClass + '">' + displayHTML + '<div class="prompt">' + esc(payload.prompt) + '</div></div>' +
+    (S.feedback ? feedbackHTML() : inputHTML) +
+    '</div>';
+}
+function numpadHTML() {
+  const keys = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '⌫', '0', '✓'];
+  return '<div class="numpad">' + keys.map(k => {
+    if (k === '⌫') return '<button class="key key-back" onclick="padBack()">⌫</button>';
+    if (k === '✓') return '<button class="key key-ok" onclick="submitAnswer()">✓</button>';
+    return '<button class="key" onclick="padDigit(\'' + k + '\')">' + k + '</button>';
+  }).join('') + '</div>';
+}
+function twoFieldHTML(labels) {
+  return '<div class="two-field">' +
+    '<div class="field ' + (S.numpadField === 0 ? 'active' : '') + '" onclick="setField(0)"><div class="flabel">' + esc(labels[0]) + '</div><div class="fval">' + (S.numpadVals[0] || '_') + '</div></div>' +
+    '<div class="field ' + (S.numpadField === 1 ? 'active' : '') + '" onclick="setField(1)"><div class="flabel">' + esc(labels[1]) + '</div><div class="fval">' + (S.numpadVals[1] || '_') + '</div></div>' +
+    '</div>';
+}
+function fractionFieldHTML() {
+  return '<div class="frac-field">' +
+    '<div class="field ' + (S.numpadField === 0 ? 'active' : '') + '" onclick="setField(0)">' + (S.numpadVals[0] || '_') + '</div>' +
+    '<div class="frac-bar-divider"></div>' +
+    '<div class="field ' + (S.numpadField === 1 ? 'active' : '') + '" onclick="setField(1)">' + (S.numpadVals[1] || '_') + '</div>' +
+    '</div>';
+}
+function mcHTML(choices) {
+  return '<div class="mc-grid">' + choices.map((c, i) => '<button class="mc-btn ' + (S.mcSelected === i ? 'sel' : '') + '" onclick="selectMC(' + i + ')">' + esc(c) + '</button>').join('') + '</div>';
+}
+function textHTML() {
+  return '<div class="text-input-wrap"><input id="textAns" type="text" value="' + esc(S.textVal) + '" oninput="S.textVal=this.value" placeholder="Type your answer" autocomplete="off" autocapitalize="off" autocorrect="off" onkeydown="if(event.key===\'Enter\')submitAnswer()"/><button class="btn primary" onclick="submitAnswer()">Go</button></div>';
+}
+function feedbackHTML() {
+  const f = S.feedback;
+  if (f.correct) return '<div class="feedback correct"><div class="fb-title">✅ Correct!</div><div class="xp-fly">+' + f.xp_earned + ' ⚡' + (f.zenkai ? ' 🔥 ZENKAI x2!' : '') + '</div></div>';
+  return '<div class="feedback wrong"><div class="fb-title">Not quite</div>' +
+    '<div class="fb-answer">Answer: ' + esc(formatAnswer(S.current.payload.kind, f.answer)) + '</div>' +
+    '<div class="fb-explain">' + esc(f.explanation || '') + '</div>' +
+    '<button class="btn primary" ' + (f.dismissable ? '' : 'disabled') + ' onclick="continueAfterFeedback()">Continue</button></div>';
+}
+function renderEndScreen(m) {
+  const sess = S.session;
+  m.innerHTML = '<div class="end-wrap"><h2>Session Complete</h2>' +
+    '<div class="end-stat">' + sess.correct + '/' + sess.total + ' correct</div>' +
+    '<div class="end-stat">⚡ ' + sess.xpEarned + ' XP earned</div>' +
+    '<div class="end-stat">🔥 Best streak: ' + sess.streakBest + '</div>' +
+    '<button class="btn primary" onclick="trainAgain()">Train Again</button>' +
+    '<button class="btn ghost" onclick="S.session=null; go(\'home\')">Home</button></div>';
+}
+function renderDailyResultsScreen(m) {
+  const sess = S.session;
+  const totalMs = sess.dailyResults.reduce((a, r) => a + r.ms, 0);
+  const grid = sess.dailyResults.map(r => r.correct ? '🟩' : '🟥').join(' ');
+  m.innerHTML = '<div class="end-wrap"><h2>Daily Complete!</h2>' +
+    '<div class="wordle-grid">' + grid + '</div>' +
+    '<div class="end-stat">' + sess.correct + '/' + sess.dailyResults.length + ' correct · ' + (totalMs / 1000).toFixed(1) + 's</div>' +
+    '<div class="end-stat">⚡ ' + sess.xpEarned + ' XP earned</div>' +
+    calendarHTML(S.daily.calendar, S.daily.streak) +
+    '<button class="btn primary" style="margin-top:18px" onclick="S.session=null; go(\'home\')">Back Home</button></div>';
+}
+
+// ---------- overlay render ----------
+function renderOverlay() {
+  const root = $('#overlayRoot');
+  if (!S.currentOverlay) { root.classList.remove('show'); root.innerHTML = ''; return; }
+  root.classList.add('show');
+  const o = S.currentOverlay;
+  let html = '';
+  if (o.type === 'levelup') {
+    html = '<div class="ov-card levelup"><div class="ov-flash"></div><h2>LEVEL UP!</h2><div class="ov-sub">' + (SKILL_NAME[o.skill] || o.skill) + ' is now Level ' + o.level + '</div><button class="btn primary" onclick="advanceOverlay()">Nice!</button></div>';
+  } else if (o.type === 'over9000') {
+    html = '<div class="ov-card over9000"><div class="ov-flash big"></div><h2>IT’S OVER 9000!!</h2><div class="ov-sub">Power level has broken the scouter.</div><button class="btn primary" onclick="advanceOverlay()">WOOHOO!</button></div>';
+  } else if (o.type === 'unlock') {
+    const u = o.unlock;
+    if (u.kind === 'badge') {
+      html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>Badge Earned!</h2><div class="badge-icon">🎖️</div><div class="ov-name">' + esc(u.name) + '</div><button class="btn primary" onclick="advanceOverlay()">Nice!</button></div>';
+    } else {
+      html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>New Fighter!</h2>' + fighterSVG({ slug: u.ref, rarity: u.rarity, unlocked: true }, 140) +
+        '<div class="ov-name">' + esc(u.name) + '</div><div class="ov-rarity ' + u.rarity + '">' + u.rarity + '</div>' +
+        '<button class="btn primary" onclick="advanceOverlay()">Awesome!</button></div>';
+    }
+  } else if (o.type === 'questcomplete') {
+    html = '<div class="ov-card questcomplete"><div class="ov-flash"></div><h2>Chapter Complete!</h2><div class="ov-sub">' + esc(o.chapter.title) + '</div><button class="btn primary" onclick="finishQuestSession()">Back to Quests</button></div>';
+  } else if (o.type === 'wish') {
+    html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>🐉 Shenron Grants Your Wish!</h2>' + fighterSVG({ slug: o.unlock.ref, rarity: o.unlock.rarity, unlocked: true }, 140) +
+      '<div class="ov-name">' + esc(o.unlock.name) + '</div><button class="btn primary" onclick="S.currentOverlay=null; render()">Amazing!</button></div>';
+  }
+  root.innerHTML = html;
+}
+
+// ---------- COLLECTION ----------
+function renderCollection(m) {
+  const c = S.collection;
+  if (!c) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
+  m.innerHTML = '<div class="collection-wrap">' + dragonBallTrayHTML(c) +
+    '<div class="fighter-grid">' + c.fighters.map(f =>
+      '<div class="fighter-card ' + f.rarity + ' ' + (f.unlocked ? '' : 'locked') + '">' + fighterSVG(f, 72) +
+      '<div class="fc-name">' + (f.unlocked ? esc(f.name) : '???') + '</div>' +
+      (f.unlocked ? '<div class="fc-rarity">' + f.rarity + '</div>' : '<div class="fc-hint">' + esc(f.hint) + '</div>') +
+      '</div>'
+    ).join('') + '</div></div>';
+}
+function dragonBallTrayHTML(c) {
+  const balls = new Set(c.dragon_balls);
+  const tray = Array.from({ length: 7 }, (_, i) => i + 1).map(n => '<div class="ball ' + (balls.has(n) ? 'glow' : '') + '">' + n + '</div>').join('');
+  return '<div class="db-tray">' + tray + '</div>' + (c.ready_to_wish ? '<button class="wish-btn" onclick="openWishDialog()">🐉 SUMMON SHENRON</button>' : '');
+}
+function openWishDialog() {
+  const locked = S.collection.fighters.filter(f => !f.unlocked);
+  if (!locked.length) { toast('All fighters already unlocked!'); return; }
+  openDialog('<h2>Summon Shenron</h2><p class="muted">Choose your wish:</p><div class="wish-grid">' + locked.map(f =>
+    '<button class="wish-pick" onclick="makeWish(\'' + f.slug + '\')">' + fighterSVG(Object.assign({}, f, { unlocked: true }), 56) + '<div>' + esc(f.name) + '</div></button>'
+  ).join('') + '</div>');
+}
+async function makeWish(slug) {
+  closeDialog();
+  try {
+    const u = await api('/wish', { method: 'POST', body: { fighter: slug } });
+    S.collection = await api('/collection');
+    try { S.profile = await api('/profile'); } catch (e) {}
+    S.currentOverlay = { type: 'wish', unlock: u };
+    sfx.unlockFanfare();
+    render();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+// ---------- QUESTS ----------
+function renderQuests(m) {
+  if (!S.quests) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
+  m.innerHTML = '<div class="quests-wrap">' + S.quests.map(sagaHTML).join('') + '</div>';
+}
+function sagaHTML(saga) {
+  return '<div class="saga ' + (saga.locked ? 'locked' : '') + '"><h2>' + (SAGA_NAMES[saga.saga] || saga.saga) + (saga.locked ? ' 🔒' : '') + '</h2>' +
+    '<div class="chapters">' + saga.chapters.map(ch => chapterCardHTML(ch)).join('') + '</div></div>';
+}
+function chapterCardHTML(ch) {
+  const pct = ch.requirement.correct > 0 ? Math.min(100, Math.round(ch.progress / ch.requirement.correct * 100)) : 0;
+  return '<button class="chapter-card ' + (ch.locked ? 'locked' : '') + ' ' + (ch.completed_at ? 'done' : '') + '" ' +
+    (ch.locked ? 'disabled' : 'onclick="openChapter(' + ch.id + ')"') + '>' +
+    '<div class="ch-num">Chapter ' + ch.chapter + '</div>' +
+    '<div class="ch-title">' + (ch.locked ? '???' : esc(ch.title)) + '</div>' +
+    (!ch.locked ? '<div class="bar"><i style="width:' + pct + '%"></i></div><div class="ch-progress">' + ch.progress + '/' + ch.requirement.correct + '</div>' : '') +
+    (ch.completed_at ? '<div class="ch-done">✅ Complete</div>' : '') +
+    '</button>';
+}
+function findChapter(id) {
+  for (const saga of S.quests) for (const ch of saga.chapters) if (ch.id === id) return ch;
+  return null;
+}
+function openChapter(id) {
+  const ch = findChapter(id);
+  if (!ch) return;
+  openDialog('<h2>' + esc(ch.title) + '</h2><div class="story-text">' + esc(ch.story) + '</div><div class="dlg-actions">' +
+    (ch.completed_at ? '<button class="btn" disabled>Completed ✅</button>' : '<button class="btn primary" onclick="closeDialog(); startQuestById(' + ch.id + ')">FIGHT!</button>') +
+    '</div>');
+}
+function startQuestById(id) { const ch = findChapter(id); if (ch) startQuest(ch); }
+
+// ---------- PARENTS ----------
+function renderParents(m) {
+  const p = S.parents, st = S.settingsData;
+  if (!p || !st) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
+  m.innerHTML = '<div class="parents-wrap">' +
+    '<h2>Activity (last 30 days)</h2>' + dayChartSVG(p.per_day) +
+    '<h3>Per Skill</h3><div class="scrollx"><table class="ptab"><thead><tr><th>Skill</th><th>Lvl</th><th>Attempts</th><th>Accuracy</th><th>Median</th><th>Trend</th></tr></thead><tbody>' +
+    p.per_skill.map(s => '<tr><td>' + (SKILL_NAME[s.skill] || s.skill) + '</td><td>' + s.level + '</td><td>' + s.attempts + '</td><td>' + (s.correct_bp / 100).toFixed(1) + '%</td><td>' + (s.median_ms / 1000).toFixed(1) + 's</td><td>' + (s.trend > 0 ? '↑' : s.trend < 0 ? '↓' : '→') + '</td></tr>').join('') +
+    '</tbody></table></div>' +
+    '<h3>Recent Misses</h3>' + (p.recent_misses.length ? '<div class="miss-list">' + p.recent_misses.map(missHTML).join('') + '</div>' : '<div class="empty">No recent misses</div>') +
+    '<h3>AI Content Bank</h3>' + bankHTML(p.bank) +
+    '<h3>Question Review</h3>' + questionsReviewHTML(S.questions) +
+    '<h3>Settings</h3>' + settingsFormHTML(st) +
+    '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
+    '<div class="version">DBZ Math Training · v1.0</div></div>';
+}
+function dayChartSVG(perDay) {
+  if (!perDay.length) return '<div class="empty">No activity yet</div>';
+  const w = 700, h = 160, pad = 20;
+  const max = Math.max(1, ...perDay.map(d => d.attempts));
+  const bw = (w - pad * 2) / perDay.length;
+  const bars = perDay.map((d, i) => {
+    const bh = (d.attempts / max) * (h - pad * 2);
+    const x = pad + i * bw, y = h - pad - bh;
+    const color = d.correct_bp >= 8500 ? 'var(--green)' : d.correct_bp >= 6500 ? 'var(--gold)' : 'var(--red)';
+    return '<rect x="' + (x + 1) + '" y="' + y + '" width="' + Math.max(1, bw - 2) + '" height="' + bh + '" fill="' + color + '"><title>' + d.day + ': ' + d.attempts + ' attempts, ' + (d.correct_bp / 100).toFixed(1) + '%</title></rect>';
+  }).join('');
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" class="day-chart">' + bars + '<line x1="' + pad + '" y1="' + (h - pad) + '" x2="' + (w - pad) + '" y2="' + (h - pad) + '" stroke="var(--line)"/></svg>';
+}
+function missHTML(mi) {
+  return '<div class="miss-row"><div class="miss-prompt">' + esc(mi.prompt) + '</div><div class="miss-detail">He said <b>' + esc(fmtLoose(mi.given)) + '</b> · answer <b>' + esc(fmtLoose(mi.answer)) + '</b> · ' + (SKILL_NAME[mi.skill] || mi.skill) + ' · ' + mi.day + '</div></div>';
+}
+function bankHTML(bank) {
+  const bySkill = {};
+  for (const b of bank) (bySkill[b.skill] = bySkill[b.skill] || []).push(b);
+  return Object.keys(bySkill).map(skill => {
+    const rows = bySkill[skill].slice().sort((a, b) => a.level - b.level);
+    return '<div class="bank-skill"><div class="bank-skill-name">' + (SKILL_NAME[skill] || skill) + '</div>' +
+      '<div class="bank-levels">' + rows.map(r => '<div class="bank-lvl ' + (r.available < 10 ? 'low' : '') + '" title="Level ' + r.level + ': ' + r.available + ' questions">L' + r.level + '<br>' + r.available + '</div>').join('') + '</div>' +
+      '<button class="btn sm" onclick="openGenerateDialog(\'' + skill + '\')">Generate</button></div>';
+  }).join('');
+}
+function openGenerateDialog(skill) {
+  openDialog('<h2>Generate Content</h2><label class="f">Skill</label><div>' + (SKILL_NAME[skill] || skill) + '</div>' +
+    '<label class="f">Difficulty (1-10)</label><input id="genLevel" type="number" min="1" max="10" value="5"/>' +
+    '<label class="f">Count</label><input id="genCount" type="number" min="1" max="40" value="10"/>' +
+    '<div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Cancel</button><button class="btn primary" onclick="runGenerate(\'' + skill + '\')">Generate</button></div>');
+}
+async function runGenerate(skill) {
+  const level = parseInt($('#genLevel').value, 10), count = parseInt($('#genCount').value, 10);
+  closeDialog();
+  toast('Generating…');
+  try {
+    const result = await api('/generate', { method: 'POST', body: { kind: skill, skill, difficulty: level, count } });
+    toast('Generated: ' + result.accepted + ' accepted, ' + result.rejected + ' rejected');
+    await loadParents(); render();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+function questionsReviewHTML(qs) {
+  if (!qs || !qs.length) return '<div class="empty">No AI questions yet</div>';
+  return '<div class="qreview-list">' + qs.slice(0, 50).map(q =>
+    '<div class="qreview-row ' + (q.retired ? 'retired' : '') + '"><div class="qr-main"><b>' + (SKILL_NAME[q.skill] || q.skill) + '</b> L' + q.difficulty + ' — ' + esc(q.payload.prompt) + '</div>' +
+    '<button class="btn sm" onclick="toggleRetire(' + q.id + ', ' + (!q.retired) + ')">' + (q.retired ? 'Unretire' : 'Retire') + '</button></div>'
+  ).join('') + '</div>';
+}
+async function toggleRetire(id, retired) {
+  try { await api('/questions/' + id + '/' + (retired ? 'retire' : 'unretire'), { method: 'POST' }); await loadParents(); render(); }
+  catch (e) { toast('Error: ' + e.message); }
+}
+function settingsFormHTML(st) {
+  return '<div class="settings-form"><label class="f">Daily question count</label><input id="setDailyCount" type="number" min="1" max="20" value="' + st.daily_count + '"/>' +
+    '<label class="f">Level overrides (blank = adaptive)</label>' +
+    SKILLS.map(sk => '<div class="override-row"><span>' + sk.name + '</span><input type="number" min="1" max="10" id="ov_' + sk.slug + '" value="' + (st.level_override[sk.slug] || '') + '" placeholder="auto"/></div>').join('') +
+    '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setMuteDefault" ' + (S.muted ? 'checked' : '') + ' onchange="toggleMute()"/> Mute sound</label>' +
+    '<button class="btn primary" onclick="saveSettings()">Save Settings</button></div>';
+}
+async function saveSettings() {
+  const daily_count = parseInt($('#setDailyCount').value, 10);
+  const level_override = {};
+  for (const sk of SKILLS) { const v = $('#ov_' + sk.slug).value; if (v) level_override[sk.slug] = parseInt(v, 10); }
+  try { S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override } }); toast('Settings saved'); }
+  catch (e) { toast('Error: ' + e.message); }
+}
+async function downloadExport() {
+  try {
+    const res = await fetch('/api/export', { headers: { Authorization: 'Bearer ' + apiKey() } });
+    if (!res.ok) { toast('Export failed'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename=([^;]+)/);
+    a.download = match ? match[1] : 'mathgames-export.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+// ---------- boot ----------
+async function init() {
+  renderMuteBtn();
+  if (!apiKey()) askKey();
+  await onRoute();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
 </html>
