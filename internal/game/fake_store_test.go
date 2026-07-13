@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 )
@@ -22,6 +23,8 @@ type fakeStore struct {
 	nextChID    int64
 	daily       map[string]*DailyResult
 	settings    Settings
+	batches     []AIBatch
+	nextBatchID int64
 }
 
 func newFakeStore() *fakeStore {
@@ -96,9 +99,11 @@ func (f *fakeStore) ListQuestions(ctx context.Context, skill, source string, ret
 }
 
 func (f *fakeStore) SetQuestionRetired(ctx context.Context, id int64, retired bool) error {
-	if q, ok := f.questions[id]; ok {
-		q.Retired = retired
+	q, ok := f.questions[id]
+	if !ok {
+		return fmt.Errorf("not found: question")
 	}
+	q.Retired = retired
 	return nil
 }
 
@@ -339,6 +344,33 @@ func (f *fakeStore) ExportAll(ctx context.Context) (map[string]any, error) {
 		"daily":       f.daily,
 		"settings":    f.settings,
 	}, nil
+}
+
+func (f *fakeStore) InsertAIBatch(ctx context.Context, b *AIBatch) error {
+	f.nextBatchID++
+	b.ID = f.nextBatchID
+	b.CreatedAt = time.Now()
+	f.batches = append(f.batches, *b)
+	return nil
+}
+
+func (f *fakeStore) UpdateAIBatchCounts(ctx context.Context, id int64, accepted, rejected int) error {
+	for i := range f.batches {
+		if f.batches[i].ID == id {
+			f.batches[i].Accepted = accepted
+			f.batches[i].Rejected = rejected
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) UpdateQuestChapterStory(ctx context.Context, id int64, title, story string, aiBatchID int64) error {
+	if ch, ok := f.chapters[id]; ok {
+		ch.Title = title
+		ch.Story = story
+		ch.AIBatchID = &aiBatchID
+	}
+	return nil
 }
 
 var _ Store = (*fakeStore)(nil)

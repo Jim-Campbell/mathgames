@@ -10,12 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jimgcampbell/mathgames/internal/ai"
 	"github.com/jimgcampbell/mathgames/internal/api"
 	"github.com/jimgcampbell/mathgames/internal/db"
 	"github.com/jimgcampbell/mathgames/internal/game"
 )
-
-const defaultAIModel = "claude-sonnet-5"
 
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -45,7 +44,7 @@ func run(log *slog.Logger) error {
 		MigrDir:      getEnv("MIGRATIONS_DIR", "internal/db/migrations"),
 		PWADir:       getEnv("PWA_DIR", "pwa"),
 		AnthropicKey: os.Getenv("ANTHROPIC_API_KEY"),
-		AIModel:      getEnv("AI_MODEL", defaultAIModel),
+		AIModel:      getEnv("AI_MODEL", ai.DefaultModel),
 	}
 
 	aiEnabled := cfg.AnthropicKey != ""
@@ -77,7 +76,12 @@ func run(log *slog.Logger) error {
 	log.Info("skill state seeded")
 
 	svc := game.NewService(database, log)
-	gameHandler := api.NewGameHandler(svc, log)
+
+	var aiGen *ai.Generator
+	if aiEnabled {
+		aiGen = ai.NewGenerator(database, ai.NewClient(cfg.AnthropicKey, cfg.AIModel), cfg.AIModel, log)
+	}
+	gameHandler := api.NewGameHandler(svc, aiGen, log)
 
 	r := api.NewRouter(api.Config{
 		APIKey: cfg.APIKey,

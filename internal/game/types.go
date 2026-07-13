@@ -240,6 +240,22 @@ type DailyResult struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 }
 
+// AIBatch is one batch content-generation call, recorded for audit/replay
+// per ARCHITECTURE.md "AI content generation". Skill/Difficulty are unset
+// for story batches.
+type AIBatch struct {
+	ID         int64           `json:"id"`
+	Kind       string          `json:"kind"` // word_problems|logic|story
+	Skill      *string         `json:"skill,omitempty"`
+	Difficulty *int            `json:"difficulty,omitempty"`
+	Model      string          `json:"model"`
+	Prompt     string          `json:"prompt"`
+	Raw        json.RawMessage `json:"raw"`
+	Accepted   int             `json:"accepted"`
+	Rejected   int             `json:"rejected"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
 // Settings is the single-row (id=1) app configuration.
 type Settings struct {
 	ID            int            `json:"id"`

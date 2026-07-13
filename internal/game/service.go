@@ -385,6 +385,26 @@ func (s *Service) UpdateSettings(ctx context.Context, in *Settings) (*Settings, 
 	return s.GetSettings(ctx)
 }
 
+// ---- question review (parent view) ----
+
+// ListQuestions supports GET /api/questions; skill/source/retired are
+// optional filters (empty/nil means "any").
+func (s *Service) ListQuestions(ctx context.Context, skill, source string, retired *bool) ([]Question, error) {
+	qs, err := s.store.ListQuestions(ctx, skill, source, retired)
+	if err != nil {
+		return nil, fmt.Errorf("list questions: %w", err)
+	}
+	return qs, nil
+}
+
+// SetQuestionRetired backs POST /api/questions/{id}/retire|unretire.
+// Retired questions never get served (PickAIQuestions already filters).
+// Store's "not found: question" sentinel is passed through unwrapped so
+// GameHandler.fail's prefix match still routes it to 404.
+func (s *Service) SetQuestionRetired(ctx context.Context, id int64, retired bool) error {
+	return s.store.SetQuestionRetired(ctx, id, retired)
+}
+
 // ---- export ----
 
 func (s *Service) Export(ctx context.Context) (map[string]any, error) {

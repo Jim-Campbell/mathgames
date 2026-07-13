@@ -60,7 +60,41 @@ func (d *DB) ExportAll(ctx context.Context) (map[string]any, error) {
 	}
 	out["attempts"] = attempts
 
+	batches, err := d.listAllAIBatches(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out["ai_batches"] = batches
+
 	return out, nil
+}
+
+func (d *DB) listAllAIBatches(ctx context.Context) ([]map[string]any, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT id, kind, skill, difficulty, model, prompt, accepted, rejected, created_at
+		FROM ai_batches ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("list ai batches: %w", err)
+	}
+	defer rows.Close()
+
+	var out []map[string]any
+	for rows.Next() {
+		var id int64
+		var kind, model, prompt string
+		var skill *string
+		var difficulty *int
+		var accepted, rejected int
+		var createdAt time.Time
+		if err := rows.Scan(&id, &kind, &skill, &difficulty, &model, &prompt, &accepted, &rejected, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan ai batch: %w", err)
+		}
+		out = append(out, map[string]any{
+			"id": id, "kind": kind, "skill": skill, "difficulty": difficulty, "model": model,
+			"prompt": prompt, "accepted": accepted, "rejected": rejected, "created_at": createdAt,
+		})
+	}
+	return out, rows.Err()
 }
 
 func (d *DB) listAllSessions(ctx context.Context) ([]map[string]any, error) {

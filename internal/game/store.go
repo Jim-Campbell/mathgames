@@ -97,4 +97,20 @@ type Store interface {
 
 	// ExportAll dumps every table, keyed by table name, for GET /api/export.
 	ExportAll(ctx context.Context) (map[string]any, error)
+
+	// ---- AI content generation ----
+
+	// InsertAIBatch records one generation call (full raw response) and sets
+	// b.ID/b.CreatedAt; b.Accepted/b.Rejected are filled in afterward via
+	// UpdateAIBatchCounts once the caller has validated every item (the
+	// batch row's id is needed first, to tag accepted questions with it).
+	InsertAIBatch(ctx context.Context, b *AIBatch) error
+
+	// UpdateAIBatchCounts records how many items a batch's items validated
+	// into (accepted) vs failed validation (rejected).
+	UpdateAIBatchCounts(ctx context.Context, id int64, accepted, rejected int) error
+
+	// UpdateQuestChapterStory rewrites one chapter's title/story after a
+	// story batch, tagging it with the batch that produced it.
+	UpdateQuestChapterStory(ctx context.Context, id int64, title, story string, aiBatchID int64) error
 }

@@ -10,19 +10,22 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/jimgcampbell/mathgames/internal/ai"
 	"github.com/jimgcampbell/mathgames/internal/game"
 )
 
-// GameHandler serves the phase-3 API surface (sessions, serving, attempts,
-// daily, profile, collection, wish, quests, parents, settings, export).
-// AI generation and question-review endpoints are phase 4.
+// GameHandler serves the full API surface: sessions, serving, attempts,
+// daily, profile, collection, wish, quests, parents, settings, export
+// (phase 3), plus AI generation and question-review (phase 4). aiGen is nil
+// when ANTHROPIC_API_KEY isn't configured; generate returns 503 in that case.
 type GameHandler struct {
-	svc *game.Service
-	log *slog.Logger
+	svc   *game.Service
+	aiGen *ai.Generator
+	log   *slog.Logger
 }
 
-func NewGameHandler(svc *game.Service, log *slog.Logger) *GameHandler {
-	return &GameHandler{svc: svc, log: log}
+func NewGameHandler(svc *game.Service, aiGen *ai.Generator, log *slog.Logger) *GameHandler {
+	return &GameHandler{svc: svc, aiGen: aiGen, log: log}
 }
 
 func (h *GameHandler) Routes(r chi.Router) {
@@ -47,6 +50,11 @@ func (h *GameHandler) Routes(r chi.Router) {
 	r.Put("/settings", h.updateSettings)
 
 	r.Get("/export", h.export)
+
+	r.Post("/generate", h.generate)
+	r.Get("/questions", h.listQuestions)
+	r.Post("/questions/{id}/retire", h.retireQuestion)
+	r.Post("/questions/{id}/unretire", h.unretireQuestion)
 }
 
 // ---- sessions ----
@@ -314,6 +322,83 @@ func (h *GameHandler) export(w http.ResponseWriter, r *http.Request) {
 	filename := "mathgames-export-" + time.Now().UTC().Format("20060102") + ".json"
 	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	writeJSON(w, http.StatusOK, doc)
+}
+
+// ---- AI generation / question review (parent view) ----
+
+func (h *GameHandler) generate(w http.ResponseWriter, r *http.Request) {
+	if h.aiGen == nil {
+		writeError(w, http.StatusServiceUnavailable, "AI content generation is not configured (set ANTHROPIC_API_KEY)")
+		return
+	}
+	var body struct {
+		Kind       string `json:"kind"`
+		Skill      string `json:"skill"`
+		Difficulty int    `json:"difficulty"`
+		Count      int    `json:"count"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+
+	var result *ai.BatchResult
+	var err error
+	switch body.Kind {
+	case "story":
+		result, err = h.aiGen.GenerateStorySaga(r.Context(), body.Skill)
+	case "word_problems", "logic":
+		result, err = h.aiGen.GenerateBatch(r.Context(), body.Skill, body.Difficulty, body.Count)
+	default:
+		writeError(w, http.StatusBadRequest, "kind must be one of word_problems, logic, story")
+		return
+	}
+	if err != nil {
+		h.fail(w, "generate content", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *GameHandler) listQuestions(w http.ResponseWriter, r *http.Request) {
+	skill := r.URL.Query().Get("skill")
+	source := r.URL.Query().Get("source")
+	var retired *bool
+	if rv := r.URL.Query().Get("retired"); rv != "" {
+		b, err := strconv.ParseBool(rv)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "retired must be true or false")
+			return
+		}
+		retired = &b
+	}
+	qs, err := h.svc.ListQuestions(r.Context(), skill, source, retired)
+	if err != nil {
+		h.fail(w, "list questions", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, qs)
+}
+
+func (h *GameHandler) retireQuestion(w http.ResponseWriter, r *http.Request) {
+	h.setQuestionRetired(w, r, true)
+}
+
+func (h *GameHandler) unretireQuestion(w http.ResponseWriter, r *http.Request) {
+	h.setQuestionRetired(w, r, false)
+}
+
+func (h *GameHandler) setQuestionRetired(w http.ResponseWriter, r *http.Request, retired bool) {
+	id, err := parseInt64(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid question id")
+		return
+	}
+	if err := h.svc.SetQuestionRetired(r.Context(), id, retired); err != nil {
+		h.fail(w, "set question retired", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---- helpers ----
