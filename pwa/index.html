@@ -74,8 +74,24 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
   transition: opacity .25s; pointer-events: none; z-index: 40; max-width: 90vw; border: 1px solid var(--line);
 }
 #toast.show { opacity: 1; }
+#offlineBar {
+  position: sticky; top: 0; z-index: 9; max-height: 0; overflow: hidden; text-align: center;
+  background: var(--red); color: #2a0a0a; font-size: .8rem; font-weight: 700; padding: 0 12px;
+  transition: max-height .25s ease, padding .25s ease;
+}
+#offlineBar.show { max-height: 40px; padding: 8px 12px; }
+.ai-off-notice {
+  background: var(--card2); border: 1px solid var(--line); border-left: 3px solid var(--gold);
+  border-radius: 10px; padding: 10px 14px; font-size: .82rem; color: var(--muted); margin-bottom: 12px;
+}
 
 /* ---- home ---- */
+.hero-banner { text-align: center; padding: 14px 16px 0; }
+.hero-kicker {
+  font-size: .74rem; font-weight: 900; letter-spacing: .16em; color: var(--orange);
+  text-shadow: 0 0 12px rgba(255,140,26,.5);
+}
+.hero-taunt { margin-top: 6px; font-size: .88rem; font-style: italic; color: var(--muted); }
 .power-block { position: relative; text-align: center; padding: 34px 0 20px; }
 .power-aura {
   position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); width: 220px; height: 220px;
@@ -253,6 +269,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
   <h1 onclick="go('home')"><span>DBZ</span> Math</h1>
   <button id="muteBtn" onclick="toggleMute()">🔊</button>
 </header>
+<div id="offlineBar">📡 Offline — training will resume when you're back online</div>
 <main id="main"></main>
 <nav id="tabbar"></nav>
 <div id="toast"></div>
@@ -276,6 +293,18 @@ const SKILLS = [
 const SKILL_NAME = Object.fromEntries(SKILLS.map(s => [s.slug, s.name]));
 const SAGA_NAMES = { saiyan: 'Saiyan Saga', namek: 'Namek Saga', android: 'Android Saga', cell: 'Cell Saga', buu: 'Majin Buu Saga' };
 const RARITY_COLOR = { common: '#8891b3', rare: '#4fc3f7', epic: '#b388ff', legendary: '#ffd54a' };
+const TAUNTS = [
+  "Every legend starts as a nobody. Prove them wrong.",
+  "Vegeta didn't get strong by giving up. Neither do you.",
+  "Somewhere, a Saiyan is smiling. Go get stronger.",
+  "Think you've hit your limit? Saiyans don't have one.",
+  "Even Goku had a power level of 10 once. This is yours.",
+  "Numbers don't lie. Neither does hard work. Let's go.",
+  "Scared of a word problem? A word problem should be scared of you.",
+  "Zenkai only kicks in after you get knocked down. Bring it on.",
+  "Today's training: get stronger than yesterday's you.",
+  "Zzz... is that all you've got? Show me a real power level.",
+];
 
 // ---------- state ----------
 const S = {
@@ -287,14 +316,26 @@ const S = {
   numpad: '', numpadVals: ['', ''], numpadField: 0, mcSelected: -1, textVal: '',
   muted: localStorage.getItem('mg_mute') === '1',
   seenOver9000: localStorage.getItem('mg_seen_over9000') === '1',
+  offline: false, aiEnabled: true,
+  taunt: TAUNTS[Math.floor(Math.random() * TAUNTS.length)],
 };
 
 // ---------- api ----------
 function apiKey() { return localStorage.getItem('mg_api_key') || ''; }
+function setOffline(v) {
+  if (S.offline === v) return;
+  S.offline = v;
+  $('#offlineBar').classList.toggle('show', v);
+}
+window.addEventListener('online', () => setOffline(false));
+window.addEventListener('offline', () => setOffline(true));
 async function api(path, opts = {}) {
   opts.headers = Object.assign({ Authorization: 'Bearer ' + apiKey() }, opts.headers || {});
   if (opts.body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.body); }
-  const res = await fetch('/api' + path, opts);
+  let res;
+  try { res = await fetch('/api' + path, opts); }
+  catch (e) { setOffline(true); throw new Error('offline'); }
+  setOffline(false);
   if (res.status === 401) { askKey(); throw new Error('unauthorized'); }
   if (!res.ok) {
     let msg = 'request failed';
@@ -308,6 +349,7 @@ function askKey() {
   const k = prompt('Enter the DBZ Math API key:');
   if (k) { localStorage.setItem('mg_api_key', k.trim()); onRoute(); }
 }
+function showError(e) { if (e.message === 'offline' || e.message === 'unauthorized') return; toast('Error: ' + e.message); }
 
 // ---------- utils ----------
 const $ = s => document.querySelector(s);
@@ -434,20 +476,22 @@ async function onRoute() {
     else if (S.view === 'quests') await loadQuests();
     else if (S.view === 'parents') await loadParents();
     render();
-  } catch (e) { if (e.message !== 'unauthorized') toast('Error: ' + e.message); }
+  } catch (e) { showError(e); }
 }
 
 async function loadHome() {
   const [profile, daily, collection] = await Promise.all([api('/profile'), api('/daily'), api('/collection')]);
   S.profile = profile; S.daily = daily; S.collection = collection;
+  S.taunt = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
 }
 async function loadCollection() { S.collection = await api('/collection'); }
 async function loadQuests() { S.quests = await api('/quests'); }
 async function loadParents() {
-  const [summary, settings, questions] = await Promise.all([
+  const [summary, settings, questions, health] = await Promise.all([
     api('/parents/summary?days=30'), api('/settings'), api('/questions?source=ai'),
+    fetch('/api/health').then(r => r.json()).catch(() => ({ ai: true })),
   ]);
-  S.parents = summary; S.settingsData = settings; S.questions = questions || [];
+  S.parents = summary; S.settingsData = settings; S.questions = questions || []; S.aiEnabled = !!health.ai;
 }
 
 // ---------- render dispatch ----------
@@ -473,6 +517,7 @@ function renderHome(m) {
   const p = S.profile, d = S.daily;
   if (!p) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
   m.innerHTML =
+    '<div class="hero-banner"><div class="hero-kicker">⚡ SKYLAR\'S TRAINING GROUNDS ⚡</div><div class="hero-taunt">"' + esc(S.taunt) + '"</div></div>' +
     '<div class="power-block"><div class="power-aura"></div><div class="power-num" id="powerNum">' + fmtInt(p.power_level) + '</div><div class="power-label">POWER LEVEL</div></div>' +
     dailyCardHTML(d) +
     '<button class="train-btn" onclick="startTraining(\'mixed\')">⚡ TRAIN</button>' +
@@ -556,7 +601,7 @@ async function loadNextQuestion() {
       const res = await api('/next?skill=' + encodeURIComponent(skill) + '&count=1&session_id=' + sess.id);
       S.current = res.questions[0];
       if (res.bank_low && !sess.bankLowWarned.has(skill)) { sess.bankLowWarned.add(skill); toast('Running low on questions for ' + (SKILL_NAME[skill] || skill) + ' — ask a grown-up to generate more!'); }
-    } catch (e) { toast('Error: ' + e.message); return; }
+    } catch (e) { showError(e); return; }
   }
   resetNumpad();
   S.locked = false;
@@ -596,7 +641,7 @@ async function submitAnswer() {
   try {
     const result = await api('/attempts', { method: 'POST', body: { session_id: S.session.id, question_id: q.id, given, elapsed_ms: elapsed } });
     afterAttempt(result, elapsed);
-  } catch (e) { S.locked = false; toast('Error: ' + e.message); render(); }
+  } catch (e) { S.locked = false; showError(e); render(); }
 }
 function formatAnswer(kind, ans) {
   if (kind === 'numeric') return ans.value;
@@ -839,7 +884,7 @@ async function makeWish(slug) {
     S.currentOverlay = { type: 'wish', unlock: u };
     sfx.unlockFanfare();
     render();
-  } catch (e) { toast('Error: ' + e.message); }
+  } catch (e) { showError(e); }
 }
 
 // ---------- QUESTS ----------
@@ -884,7 +929,9 @@ function renderParents(m) {
     p.per_skill.map(s => '<tr><td>' + (SKILL_NAME[s.skill] || s.skill) + '</td><td>' + s.level + '</td><td>' + s.attempts + '</td><td>' + (s.correct_bp / 100).toFixed(1) + '%</td><td>' + (s.median_ms / 1000).toFixed(1) + 's</td><td>' + (s.trend > 0 ? '↑' : s.trend < 0 ? '↓' : '→') + '</td></tr>').join('') +
     '</tbody></table></div>' +
     '<h3>Recent Misses</h3>' + (p.recent_misses.length ? '<div class="miss-list">' + p.recent_misses.map(missHTML).join('') + '</div>' : '<div class="empty">No recent misses</div>') +
-    '<h3>AI Content Bank</h3>' + bankHTML(p.bank) +
+    '<h3>AI Content Bank</h3>' +
+    (S.aiEnabled ? '' : '<div class="ai-off-notice">⚠️ AI content generation is off — no <code>ANTHROPIC_API_KEY</code> configured on the server. Training still works from whatever\'s already in the bank; set the key and redeploy to generate more.</div>') +
+    bankHTML(p.bank) +
     '<h3>Question Review</h3>' + questionsReviewHTML(S.questions) +
     '<h3>Settings</h3>' + settingsFormHTML(st) +
     '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
@@ -913,7 +960,7 @@ function bankHTML(bank) {
     const rows = bySkill[skill].slice().sort((a, b) => a.level - b.level);
     return '<div class="bank-skill"><div class="bank-skill-name">' + (SKILL_NAME[skill] || skill) + '</div>' +
       '<div class="bank-levels">' + rows.map(r => '<div class="bank-lvl ' + (r.available < 10 ? 'low' : '') + '" title="Level ' + r.level + ': ' + r.available + ' questions">L' + r.level + '<br>' + r.available + '</div>').join('') + '</div>' +
-      '<button class="btn sm" onclick="openGenerateDialog(\'' + skill + '\')">Generate</button></div>';
+      (S.aiEnabled ? '<button class="btn sm" onclick="openGenerateDialog(\'' + skill + '\')">Generate</button>' : '<button class="btn sm" disabled title="AI content generation is off">Generate</button>') + '</div>';
   }).join('');
 }
 function openGenerateDialog(skill) {
@@ -930,7 +977,7 @@ async function runGenerate(skill) {
     const result = await api('/generate', { method: 'POST', body: { kind: skill, skill, difficulty: level, count } });
     toast('Generated: ' + result.accepted + ' accepted, ' + result.rejected + ' rejected');
     await loadParents(); render();
-  } catch (e) { toast('Error: ' + e.message); }
+  } catch (e) { showError(e); }
 }
 function questionsReviewHTML(qs) {
   if (!qs || !qs.length) return '<div class="empty">No AI questions yet</div>';
@@ -941,7 +988,7 @@ function questionsReviewHTML(qs) {
 }
 async function toggleRetire(id, retired) {
   try { await api('/questions/' + id + '/' + (retired ? 'retire' : 'unretire'), { method: 'POST' }); await loadParents(); render(); }
-  catch (e) { toast('Error: ' + e.message); }
+  catch (e) { showError(e); }
 }
 function settingsFormHTML(st) {
   return '<div class="settings-form"><label class="f">Daily question count</label><input id="setDailyCount" type="number" min="1" max="20" value="' + st.daily_count + '"/>' +
@@ -955,7 +1002,7 @@ async function saveSettings() {
   const level_override = {};
   for (const sk of SKILLS) { const v = $('#ov_' + sk.slug).value; if (v) level_override[sk.slug] = parseInt(v, 10); }
   try { S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override } }); toast('Settings saved'); }
-  catch (e) { toast('Error: ' + e.message); }
+  catch (e) { showError(e); }
 }
 async function downloadExport() {
   try {
@@ -970,7 +1017,7 @@ async function downloadExport() {
     a.download = match ? match[1] : 'mathgames-export.json';
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-  } catch (e) { toast('Error: ' + e.message); }
+  } catch (e) { showError(e); }
 }
 
 // ---------- boot ----------

@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mathgames-smoke",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "./cmd/server"],
+      "port": 8083,
+      "env": {
+        "DATABASE_URL": "postgres://localhost:5432/mathgames_smoke?sslmode=disable",
+        "MATHGAMES_API_KEY": "smoketest"
+      }
+    }
+  ]
+}
