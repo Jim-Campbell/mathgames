@@ -104,9 +104,10 @@ func GenerateQuestions(ctx context.Context, msgr Messenger, model, kind string, 
 	user := fmt.Sprintf("Generate exactly %d new questions now, as a JSON array and nothing else.", count)
 
 	resp, err := msgr.CreateMessage(ctx, Request{
-		Model:    model,
-		System:   systemPrompt,
-		Messages: []Message{{Role: RoleUser, Content: user}},
+		Model:     model,
+		MaxTokens: GenerationMaxTokens,
+		System:    systemPrompt,
+		Messages:  []Message{{Role: RoleUser, Content: user}},
 	})
 	if err != nil {
 		return systemPrompt, "", nil, fmt.Errorf("generate %s: %w", kind, err)
@@ -151,27 +152,63 @@ func GenerateStory(ctx context.Context, msgr Messenger, model, saga string, chap
 	systemPrompt = sb.String()
 
 	resp, err := msgr.CreateMessage(ctx, Request{
-		Model:    model,
-		System:   systemPrompt,
-		Messages: []Message{{Role: RoleUser, Content: "Write the story batch now."}},
+		Model:     model,
+		MaxTokens: GenerationMaxTokens,
+		System:    systemPrompt,
+		Messages:  []Message{{Role: RoleUser, Content: "Write the story batch now."}},
 	})
 	if err != nil {
 		return systemPrompt, "", nil, fmt.Errorf("generate story for saga %s: %w", saga, err)
 	}
 	rawText = resp.Text()
 
-	if err := json.Unmarshal([]byte(stripCodeFence(rawText)), &items); err != nil {
+	if err := json.Unmarshal([]byte(extractJSONArray(rawText)), &items); err != nil {
 		return systemPrompt, rawText, nil, fmt.Errorf("parse story response: %w", err)
 	}
 	return systemPrompt, rawText, items, nil
 }
 
+// parseItems tolerantly reads a JSON array of items out of the model's
+// response. It survives two real failure modes: (1) prose or a code fence
+// wrapping the array, and (2) truncation — when a batch of verbose items
+// overruns the token budget, the array ends mid-object. It streams elements
+// with a json.Decoder and keeps every complete one, so a truncated tail
+// costs at most the final item instead of failing the whole batch.
 func parseItems(text string) ([]RawItem, error) {
+	dec := json.NewDecoder(strings.NewReader(extractJSONArray(text)))
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, fmt.Errorf("no JSON array in response: %w", err)
+	}
+	if d, ok := tok.(json.Delim); !ok || d != '[' {
+		return nil, fmt.Errorf("expected a JSON array, got %v", tok)
+	}
+
 	var items []RawItem
-	if err := json.Unmarshal([]byte(stripCodeFence(text)), &items); err != nil {
-		return nil, err
+	for dec.More() {
+		var it RawItem
+		if err := dec.Decode(&it); err != nil {
+			// A truncated or malformed trailing element — keep the complete
+			// ones already decoded rather than discarding the whole batch.
+			break
+		}
+		items = append(items, it)
+	}
+	if len(items) == 0 {
+		return nil, fmt.Errorf("no parseable items in response")
 	}
 	return items, nil
+}
+
+// extractJSONArray strips a wrapping code fence and any prose before the
+// array, returning the text from the first '[' onward (a streaming decoder
+// stops at the matching ']', so trailing prose is harmless).
+func extractJSONArray(text string) string {
+	s := stripCodeFence(text)
+	if i := strings.IndexByte(s, '['); i >= 0 {
+		return s[i:]
+	}
+	return s
 }
 
 // stripCodeFence removes a wrapping ```json ... ``` (or plain ```) fence if

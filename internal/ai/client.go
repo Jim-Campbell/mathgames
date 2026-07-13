@@ -23,6 +23,13 @@ const (
 	DefaultModel     = "claude-sonnet-5"
 	DefaultMaxTokens = 8192
 
+	// GenerationMaxTokens is the output budget for a content-generation batch.
+	// A batch of 10 hard logic puzzles (grids + several clues each) overruns
+	// the 8192 default and truncates the JSON, so generation asks for more
+	// headroom. parseItems still salvages complete items if a response
+	// truncates anyway.
+	GenerationMaxTokens = 16384
+
 	RoleUser = "user"
 )
 
