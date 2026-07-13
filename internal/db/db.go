@@ -6,7 +6,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/jimgcampbell/mathgames/internal/game"
 )
+
+// Compile-time assertion that *DB implements game.Store.
+var _ game.Store = (*DB)(nil)
 
 type DB struct {
 	pool *pgxpool.Pool

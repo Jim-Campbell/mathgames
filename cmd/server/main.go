@@ -71,16 +71,19 @@ func run(log *slog.Logger) error {
 	}
 	log.Info("migrations complete")
 
-	if err := game.SeedSkillState(ctx, database); err != nil {
+	if err := db.SeedSkillState(ctx, database, game.Skills); err != nil {
 		return fmt.Errorf("seed skill state: %w", err)
 	}
 	log.Info("skill state seeded")
+
+	svc := game.NewService(database, log)
+	gameHandler := api.NewGameHandler(svc, log)
 
 	r := api.NewRouter(api.Config{
 		APIKey: cfg.APIKey,
 		AI:     aiEnabled,
 		PWADir: cfg.PWADir,
-	}, log)
+	}, gameHandler, log)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

@@ -18,7 +18,7 @@ type Config struct {
 	PWADir string
 }
 
-func NewRouter(cfg Config, log *slog.Logger) *chi.Mux {
+func NewRouter(cfg Config, game *GameHandler, log *slog.Logger) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.RequestID)
@@ -29,11 +29,12 @@ func NewRouter(cfg Config, log *slog.Logger) *chi.Mux {
 		// Health is unauthenticated.
 		r.Get("/health", healthHandler(cfg.AI))
 
-		// All other /api routes require auth. The wildcard catch-all ensures
-		// the auth middleware runs even for unmatched paths (returning 404
-		// only after a valid bearer token is presented).
+		// All other /api routes require auth.
 		r.Group(func(r chi.Router) {
 			r.Use(AuthMiddleware(cfg.APIKey))
+			game.Routes(r)
+			// Catch-all: returns 404 only after a valid bearer token is
+			// presented, for any route not registered above.
 			r.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusNotFound, "not found")
 			})
