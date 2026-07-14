@@ -72,9 +72,17 @@ func genPlaceValue(level int, rng *rand.Rand) (payload Payload, answer any, expl
 
 	switch level {
 	case 1: // value of a digit in a 3-digit number
-		n := 100 + rng.Intn(900)
-		place := []int{100, 10, 1}[rng.Intn(3)]
-		digit := (n / place) % 10
+		// The queried digit must appear exactly once, or "value of the digit 6
+		// in 566" is ambiguous (both 60 and 6 are defensible).
+		var n, place, digit int
+		for {
+			n = 100 + rng.Intn(900)
+			place = []int{100, 10, 1}[rng.Intn(3)]
+			digit = (n / place) % 10
+			if digitCount(n, digit) == 1 {
+				break
+			}
+		}
 		value := digit * place
 		prompt := fmt.Sprintf("What is the value of the digit %d in %d?", digit, n)
 		exp := fmt.Sprintf("the %d is in the %s place, so its value is %d", digit, placeName(place), value)
@@ -158,6 +166,24 @@ func genPlaceValue(level int, rng *rand.Rand) (payload Payload, answer any, expl
 	default:
 		return genPlaceValue(1, rng)
 	}
+}
+
+// digitCount returns how many times decimal digit d appears in n.
+func digitCount(n, d int) int {
+	if n == 0 {
+		if d == 0 {
+			return 1
+		}
+		return 0
+	}
+	count := 0
+	for n > 0 {
+		if n%10 == d {
+			count++
+		}
+		n /= 10
+	}
+	return count
 }
 
 func placeName(place int) string {
