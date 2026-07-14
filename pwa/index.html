@@ -102,33 +102,31 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 @keyframes aura-pulse { 0%,100% { transform: translate(-50%,-50%) scale(.92); opacity: .7; } 50% { transform: translate(-50%,-50%) scale(1.08); opacity: 1; } }
 .power-num { position: relative; font-size: 3.2rem; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--gold); text-shadow: 0 0 24px rgba(255,213,74,.6); }
 .power-label { position: relative; font-size: .8rem; letter-spacing: .18em; color: var(--muted); margin-top: 2px; }
-.daily-card {
-  background: linear-gradient(135deg, var(--card2), var(--card)); border: 1px solid var(--line); border-radius: 14px;
-  padding: 16px; margin-bottom: 14px; cursor: pointer; box-shadow: var(--shadow);
-}
-.daily-card.done { border-color: var(--green); }
-.dc-title { font-weight: 800; font-size: 1rem; }
 .dc-sub { color: var(--muted); font-size: .85rem; margin-top: 4px; }
 .train-btn {
   display: block; width: 100%; padding: 18px; border: none; border-radius: 16px; font-size: 1.2rem; font-weight: 900;
   color: #1a0e00; background: linear-gradient(135deg, var(--gold), var(--orange-deep)); cursor: pointer; margin-bottom: 6px;
   box-shadow: 0 4px 20px rgba(255,140,26,.4); min-height: 64px;
 }
-.skill-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.skill-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .skill-chip {
-  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: left;
-  cursor: pointer; color: var(--text); min-height: 64px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; text-align: left;
+  cursor: pointer; color: var(--text); min-height: 40px;
 }
-.sc-name { font-weight: 700; font-size: .88rem; }
-.sc-level { color: var(--orange); font-size: .78rem; margin-top: 4px; font-weight: 700; }
+.sc-name { font-weight: 700; font-size: .8rem; }
+.sc-level { color: var(--orange); font-size: .72rem; font-weight: 700; flex-shrink: 0; }
 .unlock-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
 .unlock-mini { text-align: center; flex-shrink: 0; width: 68px; }
 .um-name { font-size: .68rem; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-streak { font-weight: 700; margin-bottom: 10px; }
-.cal-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
-.cal-cell { aspect-ratio: 1; border-radius: 4px; background: var(--line); }
-.cal-cell.cal-perfect { background: var(--green); }
-.cal-cell.cal-partial { background: var(--gold); }
+.activity-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+.activity-bar { display: flex; gap: 3px; align-items: flex-end; min-width: min-content; }
+.act-col { flex: 0 0 20px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.act-bars { height: 60px; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; border-radius: 3px; overflow: hidden; background: var(--card); }
+.act-wrong { width: 100%; background: var(--red); }
+.act-correct { width: 100%; background: var(--green); }
+.act-empty { height: 3px; width: 100%; background: var(--line); margin-top: auto; }
+.act-day { font-size: .55rem; color: var(--muted); white-space: nowrap; transform: rotate(-45deg); transform-origin: center; height: 22px; }
 
 /* ---- play ---- */
 .play-wrap { max-width: 560px; margin: 0 auto; }
@@ -202,7 +200,6 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 .end-wrap { text-align: center; padding: 40px 12px; }
 .end-stat { font-size: 1.1rem; font-weight: 700; margin: 8px 0; }
-.wordle-grid { font-size: 1.8rem; letter-spacing: 6px; margin: 16px 0; }
 .end-wrap .btn { margin: 6px auto; display: block; max-width: 260px; }
 
 /* ---- overlay ---- */
@@ -331,7 +328,6 @@ const TAUNTS = [
 const S = {
   view: 'home',
   profile: null, collection: null, quests: null, settingsData: null, parents: null, questions: [],
-  daily: null,
   session: null, current: null, currentStart: 0, feedback: null, locked: false,
   overlayQueue: [], currentOverlay: null,
   numpad: '', numpadVals: ['', ''], numpadField: 0, mcSelected: -1, textVal: '',
@@ -503,8 +499,8 @@ async function onRoute() {
 }
 
 async function loadHome() {
-  const [profile, daily, collection] = await Promise.all([api('/profile'), api('/daily'), api('/collection')]);
-  S.profile = profile; S.daily = daily; S.collection = collection;
+  const [profile, collection] = await Promise.all([api('/profile'), api('/collection')]);
+  S.profile = profile; S.collection = collection;
   S.taunt = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
 }
 async function loadCollection() { S.collection = await api('/collection'); }
@@ -537,35 +533,50 @@ function renderTabBar() {
 // ---------- HOME ----------
 let lastPowerShown = null;
 function renderHome(m) {
-  const p = S.profile, d = S.daily;
+  const p = S.profile;
   if (!p) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
   m.innerHTML =
     '<div class="hero-banner"><div class="hero-kicker">⚡ SKYLAR\'S TRAINING GROUNDS ⚡</div><div class="hero-taunt">"' + esc(S.taunt) + '"</div></div>' +
     '<div class="power-block"><div class="power-aura"></div><div class="power-num" id="powerNum">' + fmtInt(p.power_level) + '</div><div class="power-label">POWER LEVEL</div></div>' +
-    dailyCardHTML(d) +
-    '<button class="train-btn" onclick="startTraining(\'mixed\')">⚡ TRAIN</button>' +
+    '<button class="train-btn" onclick="startTraining(\'mixed\')">⚡ GET RANDOM POWER</button>' +
     '<h3>Skills</h3><div class="skill-chips">' + SKILLS.map(sk =>
-      '<button class="skill-chip" onclick="startTraining(\'' + sk.slug + '\')"><div class="sc-name">' + sk.name + '</div><div class="sc-level">Lv ' + (p.levels[sk.slug] || 1) + '</div></button>'
+      '<button class="skill-chip" onclick="startTraining(\'' + sk.slug + '\')"><span class="sc-name">' + sk.name + '</span><span class="sc-level">Lv ' + (p.levels[sk.slug] || 1) + '</span></button>'
     ).join('') + '</div>' +
+    activityBarHTML(p.days) +
     recentUnlocksHTML();
   animatePowerNum(p.power_level);
+  const strip = document.querySelector('.activity-scroll');
+  if (strip) strip.scrollLeft = strip.scrollWidth; // newest day (rightmost) in view
 }
-function dailyCardHTML(d) {
-  if (!d) return '';
-  if (d.completed) return '<div class="daily-card done" onclick="showDailySummaryDialog()"><div class="dc-title">✅ Daily Complete</div><div class="dc-sub">' + d.correct + '/' + d.answered + ' correct · 🔥 ' + d.streak + '-day streak</div></div>';
-  if (d.answered > 0) return '<div class="daily-card" onclick="beginDaily()"><div class="dc-title">📅 Daily Challenge</div><div class="dc-sub">Continue — ' + d.answered + '/' + (d.questions ? d.questions.length : 5) + ' done</div></div>';
-  return '<div class="daily-card" onclick="beginDaily()"><div class="dc-title">📅 Daily Challenge</div><div class="dc-sub">Start today’s set · 🔥 ' + d.streak + '-day streak</div></div>';
-}
-function showDailySummaryDialog() {
-  const d = S.daily;
-  openDialog('<h2>Daily Challenge</h2><div class="dc-sub" style="margin-bottom:14px">Today: ' + d.correct + '/' + d.answered + ' correct</div>' + calendarHTML(d.calendar, d.streak));
-}
-function calendarHTML(cal, streak) {
-  const days = (cal || []).slice().sort((a, b) => a.day < b.day ? -1 : 1);
-  return '<div class="cal-streak">🔥 ' + streak + '-day streak</div><div class="cal-grid">' + days.map(dd => {
-    const cls = !dd.completed ? '' : (dd.correct === dd.total ? 'cal-perfect' : 'cal-partial');
-    return '<div class="cal-cell ' + cls + '" title="' + dd.day + ': ' + dd.correct + '/' + dd.total + '"></div>';
-  }).join('') + '</div>';
+// Continuous last-30-day strip of correct/wrong bars, newest on the right.
+function activityBarHTML(days) {
+  const byDay = {};
+  (days || []).forEach(d => { byDay[d.day] = d; });
+  const cells = [];
+  let maxTotal = 1;
+  const axis = [];
+  for (let i = 29; i >= 0; i--) {
+    const dt = new Date(); dt.setDate(dt.getDate() - i);
+    const key = dt.toISOString().slice(0, 10);
+    const d = byDay[key] || { day: key, correct: 0, wrong: 0 };
+    maxTotal = Math.max(maxTotal, d.correct + d.wrong);
+    axis.push(d);
+  }
+  for (const d of axis) {
+    const total = d.correct + d.wrong;
+    const label = d.day.slice(5).replace('-', '/');
+    const title = total ? d.day + ': ' + d.correct + ' right, ' + d.wrong + ' wrong' : d.day + ': no practice';
+    const ch = Math.round((d.correct / maxTotal) * 100);
+    const wh = Math.round((d.wrong / maxTotal) * 100);
+    cells.push('<div class="act-col" title="' + title + '">' +
+      '<div class="act-bars">' +
+        (total ? '<div class="act-wrong" style="height:' + wh + '%"></div><div class="act-correct" style="height:' + ch + '%"></div>' : '<div class="act-empty"></div>') +
+      '</div>' +
+      '<div class="act-day">' + label + '</div></div>');
+  }
+  return '<h3>Practice Calendar</h3>' +
+    '<div class="hint">Green = right, red = wrong, one column per day (last 30). Swipe to scroll back.</div>' +
+    '<div class="activity-scroll"><div class="activity-bar">' + cells.join('') + '</div></div>';
 }
 function recentUnlocksHTML() {
   if (!S.collection) return '';
@@ -602,30 +613,17 @@ async function startQuest(chapter) {
   go('play');
   await loadNextQuestion();
 }
-async function beginDaily() {
-  const sess = await api('/sessions', { method: 'POST', body: { mode: 'daily' } });
-  const d = await api('/daily');
-  S.daily = d;
-  S.session = { id: sess.id, mode: 'daily', queue: d.questions || [], qIndex: 0, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, dailyResults: [] };
-  go('play');
-  await loadNextQuestion();
-}
 function resetNumpad() { S.numpad = ''; S.numpadVals = ['', '']; S.numpadField = 0; S.mcSelected = -1; S.textVal = ''; }
 async function loadNextQuestion() {
   const sess = S.session;
-  if (!sess || sess.ended || sess.dailyDone) return;
-  if (sess.mode === 'daily') {
-    if (sess.qIndex >= sess.queue.length) return finishDailySession();
-    S.current = sess.queue[sess.qIndex];
-  } else {
-    let skill = sess.mode === 'quest' ? sess.skillCycle[sess.skillCycleIdx % sess.skillCycle.length] : sess.skill;
-    if (sess.mode === 'quest') sess.skillCycleIdx++;
-    try {
-      const res = await api('/next?skill=' + encodeURIComponent(skill) + '&count=1&session_id=' + sess.id);
-      S.current = res.questions[0];
-      if (res.bank_low && !sess.bankLowWarned.has(skill)) { sess.bankLowWarned.add(skill); toast('Running low on questions for ' + (SKILL_NAME[skill] || skill) + ' — ask a grown-up to generate more!'); }
-    } catch (e) { showError(e); return; }
-  }
+  if (!sess || sess.ended) return;
+  let skill = sess.mode === 'quest' ? sess.skillCycle[sess.skillCycleIdx % sess.skillCycle.length] : sess.skill;
+  if (sess.mode === 'quest') sess.skillCycleIdx++;
+  try {
+    const res = await api('/next?skill=' + encodeURIComponent(skill) + '&count=1&session_id=' + sess.id);
+    S.current = res.questions[0];
+    if (res.bank_low && !sess.bankLowWarned.has(skill)) { sess.bankLowWarned.add(skill); toast('Running low on questions for ' + (SKILL_NAME[skill] || skill) + ' — ask a grown-up to generate more!'); }
+  } catch (e) { showError(e); return; }
   resetNumpad();
   S.locked = false;
   S.currentStart = Date.now();
@@ -689,7 +687,6 @@ function afterAttempt(result, elapsedMs) {
   if (result.correct) sess.correct++;
   sess.curStreak = result.streak;
   sess.streakBest = Math.max(sess.streakBest, result.streak);
-  if (sess.mode === 'daily') { sess.dailyResults.push({ correct: result.correct, ms: elapsedMs }); sess.qIndex++; }
 
   // Capture the speed zone he landed in, from the same thresholds the server
   // scored with, so correct feedback can celebrate a speed bonus honestly.
@@ -739,11 +736,6 @@ function advanceOverlay() {
   }
 }
 function finishQuestSession() { S.currentOverlay = null; S.session = null; go('quests'); }
-async function finishDailySession() {
-  S.session.ended = true; S.session.dailyDone = true;
-  S.daily = await api('/daily');
-  render();
-}
 
 // ---------- PLAY: end session ----------
 function confirmEndSession() {
@@ -762,7 +754,6 @@ function trainAgain() {
 // ---------- PLAY: render ----------
 function renderPlay(m) {
   if (!S.session) { m.innerHTML = '<div class="empty">No active session.<br><br><button class="btn primary" onclick="go(\'home\')">Home</button></div>'; return; }
-  if (S.session.dailyDone) return renderDailyResultsScreen(m);
   if (S.session.ended) return renderEndScreen(m);
   renderQuestionScreen(m, S.session);
 }
@@ -899,18 +890,6 @@ function renderEndScreen(m) {
     '<button class="btn primary" onclick="trainAgain()">Train Again</button>' +
     '<button class="btn ghost" onclick="S.session=null; go(\'home\')">Home</button></div>';
 }
-function renderDailyResultsScreen(m) {
-  const sess = S.session;
-  const totalMs = sess.dailyResults.reduce((a, r) => a + r.ms, 0);
-  const grid = sess.dailyResults.map(r => r.correct ? '🟩' : '🟥').join(' ');
-  m.innerHTML = '<div class="end-wrap"><h2>Daily Complete!</h2>' +
-    '<div class="wordle-grid">' + grid + '</div>' +
-    '<div class="end-stat">' + sess.correct + '/' + sess.dailyResults.length + ' correct · ' + (totalMs / 1000).toFixed(1) + 's</div>' +
-    '<div class="end-stat">⚡ ' + sess.xpEarned + ' XP earned</div>' +
-    calendarHTML(S.daily.calendar, S.daily.streak) +
-    '<button class="btn primary" style="margin-top:18px" onclick="S.session=null; go(\'home\')">Back Home</button></div>';
-}
-
 // ---------- overlay render ----------
 function renderOverlay() {
   const root = $('#overlayRoot');

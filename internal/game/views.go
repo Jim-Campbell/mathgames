@@ -20,6 +20,41 @@ type Profile struct {
 	FightersTotal    int              `json:"fighters_total"`
 	DragonBalls      []int            `json:"dragon_balls"`
 	DailyStreak      int              `json:"daily_streak"`
+	Days             []DayCount       `json:"days"` // per-day answer tally, last 30 days, for the Home activity bar
+}
+
+// DayCount is one calendar day's correct/wrong answer tally across all
+// practice modes, for the Home activity bar.
+type DayCount struct {
+	Day     string `json:"day"`
+	Correct int    `json:"correct"`
+	Wrong   int    `json:"wrong"`
+}
+
+// dayCounts tallies attempts into per-day correct/wrong buckets, ascending by
+// date. Days with no attempts are omitted (the client lays them out on a
+// continuous axis). Never returns nil, so the JSON is always an array.
+func dayCounts(attempts []Attempt) []DayCount {
+	byDay := map[string]*DayCount{}
+	for _, a := range attempts {
+		day := a.CreatedAt.UTC().Format("2006-01-02")
+		d, ok := byDay[day]
+		if !ok {
+			d = &DayCount{Day: day}
+			byDay[day] = d
+		}
+		if a.Correct {
+			d.Correct++
+		} else {
+			d.Wrong++
+		}
+	}
+	out := make([]DayCount, 0, len(byDay))
+	for _, d := range byDay {
+		out = append(out, *d)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Day < out[j].Day })
+	return out
 }
 
 func (s *Service) Profile(ctx context.Context) (*Profile, error) {
@@ -70,6 +105,12 @@ func (s *Service) Profile(ctx context.Context) (*Profile, error) {
 		return nil, fmt.Errorf("list daily results: %w", err)
 	}
 	p.DailyStreak = dailyStreakFrom(results)
+
+	attempts, err := s.store.ListAttempts(ctx, time.Now().AddDate(0, 0, -30))
+	if err != nil {
+		return nil, fmt.Errorf("list attempts: %w", err)
+	}
+	p.Days = dayCounts(attempts)
 
 	return p, nil
 }
