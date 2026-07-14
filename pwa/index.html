@@ -130,16 +130,20 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 
 /* ---- screen time gauge ---- */
 .gauge-wrap { text-align: center; margin: 4px 0 18px; }
+.gauge-title {
+  font-size: .74rem; font-weight: 900; letter-spacing: .16em; color: var(--orange);
+  text-shadow: 0 0 12px rgba(255,140,26,.5); margin-bottom: 4px;
+}
+.gauge-wrap.full .gauge-title { color: var(--gold); text-shadow: 0 0 12px rgba(255,213,74,.6); }
 .gauge-svg { width: 220px; max-width: 66vw; height: auto; }
 .gauge-track { stroke: var(--card2); }
 .gauge-fill { stroke: var(--orange); }
 .gauge-wrap.full .gauge-fill { stroke: var(--gold); }
 .gauge-tick { stroke: var(--muted); stroke-width: 2; }
 .gauge-needle { stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
-.gauge-wrap.full .gauge-needle { stroke: var(--gold); }
 .gauge-minutes { font-size: 1.7rem; font-weight: 900; fill: var(--gold); font-variant-numeric: tabular-nums; }
-.gauge-label { font-size: .62rem; fill: var(--muted); letter-spacing: .12em; font-weight: 800; }
-.gauge-wrap.full .gauge-label { fill: var(--gold); }
+.gauge-label { font-size: .68rem; color: var(--muted); letter-spacing: .1em; font-weight: 800; text-transform: uppercase; margin-top: -4px; padding: 0 12px; }
+.gauge-wrap.full .gauge-label { color: var(--gold); }
 @keyframes gauge-glow { 0%,100% { filter: drop-shadow(0 0 6px rgba(255,213,74,.5)); } 50% { filter: drop-shadow(0 0 18px rgba(255,213,74,.9)); } }
 .gauge-wrap.full .gauge-svg { animation: gauge-glow 1.8s ease-in-out infinite; }
 
@@ -313,6 +317,8 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .st-dial-value { font-size: 1.4rem; font-weight: 900; color: var(--gold); }
 .st-sub { font-size: .78rem; color: var(--muted); }
 .st-current-row { background: rgba(255,213,74,.1); border-color: var(--gold); }
+.st-rate-row { display: flex; gap: 8px; align-items: center; }
+.st-rate-row input { width: 90px; }
 .qreview-summary { font-size: .85rem; font-weight: 700; margin-bottom: 10px; }
 .qreview-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 8px 0; }
 .qreview-row.retired { opacity: .5; }
@@ -629,16 +635,20 @@ function gaugeSVG(st) {
     ticks.push('<line class="gauge-tick" x1="' + inner.x.toFixed(1) + '" y1="' + inner.y.toFixed(1) + '" x2="' + outer.x.toFixed(1) + '" y2="' + outer.y.toFixed(1) + '"/>');
   }
   const label = full ? 'MAXIMUM POWER — 1 HOUR EARNED!' : 'SCREEN TIME';
+  // The label is plain HTML, not SVG <text>, so the full-state copy can wrap
+  // instead of overflowing a fixed-width viewBox (it did, badly, as SVG text).
   return '<div class="gauge-wrap ' + (full ? 'full' : '') + '" id="gaugeWrap">' +
-    '<svg viewBox="0 0 200 118" class="gauge-svg">' +
+    '<div class="gauge-title">⚡ SCREEN TIME EARNED ⚡</div>' +
+    '<svg viewBox="0 0 200 104" class="gauge-svg">' +
     '<path class="gauge-track" d="M 20,100 A 80,80 0 0 1 180,100" fill="none" stroke-width="10" stroke-linecap="round" pathLength="100"/>' +
     '<path class="gauge-fill" d="M 20,100 A 80,80 0 0 1 180,100" fill="none" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="' + pct.toFixed(1) + ' 100"/>' +
     ticks.join('') +
     '<line id="gaugeNeedle" class="gauge-needle" x1="100" y1="100" x2="30" y2="100"/>' +
     '<circle cx="100" cy="100" r="5" fill="var(--text)"/>' +
-    '<text x="100" y="90" text-anchor="middle" class="gauge-minutes">' + st.minutes_earned + ' min</text>' +
-    '<text x="100" y="108" text-anchor="middle" class="gauge-label">' + esc(label) + '</text>' +
-    '</svg></div>';
+    '<text x="100" y="86" text-anchor="middle" class="gauge-minutes">' + st.minutes_earned + ' min</text>' +
+    '</svg>' +
+    '<div class="gauge-label">' + esc(label) + '</div>' +
+    '</div>';
 }
 let lastGaugeMinutesShown = null;
 function animateGaugeNeedle(st) {
@@ -651,7 +661,7 @@ function animateGaugeNeedle(st) {
   const start = (lastGaugeMinutesShown == null || reducedMotion()) ? target : lastGaugeMinutesShown;
   lastGaugeMinutesShown = target;
   function place(v) {
-    const p = gaugeNeedlePoint(v, st.minutes_cap, 68);
+    const p = gaugeNeedlePoint(v, st.minutes_cap, 74);
     needle.setAttribute('x2', p.x.toFixed(1)); needle.setAttribute('y2', p.y.toFixed(1));
   }
   if (start === target || reducedMotion()) { place(target); return; }
@@ -1139,8 +1149,8 @@ function renderParents(m) {
     '<h3>Per Skill</h3><div class="scrollx"><table class="ptab"><thead><tr><th>Skill</th><th>Lvl</th><th>Attempts</th><th>Accuracy</th><th>Median</th><th>Trend</th></tr></thead><tbody>' +
     p.per_skill.map(s => '<tr><td>' + (SKILL_NAME[s.skill] || s.skill) + '</td><td>' + s.level + '</td><td>' + s.attempts + '</td><td>' + (s.correct_bp / 100).toFixed(1) + '%</td><td>' + (s.median_ms / 1000).toFixed(1) + 's</td><td>' + (s.trend > 0 ? '↑' : s.trend < 0 ? '↓' : '→') + '</td></tr>').join('') +
     '</tbody></table></div>' +
+    '<h3>Screen Time</h3>' + screenTimeBlockHTML(S.screenTime, st) +
     '<h3>Recent Misses</h3>' + (p.recent_misses.length ? '<div class="miss-list">' + p.recent_misses.map(missHTML).join('') + '</div>' : '<div class="empty">No recent misses</div>') +
-    '<h3>Screen Time</h3>' + screenTimeBlockHTML(S.screenTime) +
     '<h3>AI Content Bank</h3>' +
     (S.aiEnabled ? '' : '<div class="ai-off-notice">⚠️ AI content generation is off — no <code>ANTHROPIC_API_KEY</code> configured on the server. Training still works from whatever\'s already in the bank; set the key and redeploy to generate more.</div>') +
     bankHTML(p.bank) +
@@ -1171,12 +1181,27 @@ function dayChartSVG(perDay) {
 function missHTML(mi) {
   return '<div class="miss-row"><div class="miss-prompt">' + esc(mi.prompt) + '</div><div class="miss-detail">He said <b>' + esc(fmtLoose(mi.given)) + '</b> · answer <b>' + esc(fmtLoose(mi.answer)) + '</b> · ' + (SKILL_NAME[mi.skill] || mi.skill) + ' · ' + mi.day + '</div></div>';
 }
-function screenTimeBlockHTML(st) {
-  if (!st) return '<div class="empty">Loading…</div>';
+function screenTimeBlockHTML(st, settings) {
+  if (!st || !settings) return '<div class="empty">Loading…</div>';
   return '<div class="st-block"><div><div class="st-dial-value">' + st.minutes_earned + ' / ' + st.minutes_cap + ' min</div>' +
     '<div class="st-sub">' + st.corrects_since_reset + ' correct' + (st.corrects_since_reset === 1 ? '' : 's') + ' since ' + (st.since_reset ? new Date(st.since_reset).toLocaleDateString() : 'the start') + (st.full ? ' · MAXIMUM POWER!' : '') + '</div></div>' +
     '<button class="btn' + (st.minutes_earned === 0 ? ' ghost' : ' primary') + ' sm" ' + (st.minutes_earned === 0 ? 'disabled' : '') + ' onclick="confirmResetScreenTime()">Reset</button></div>' +
-    '<button class="btn ghost sm" onclick="go(\'stlog\')">Screen Time Log →</button>';
+    '<button class="btn ghost sm" onclick="go(\'stlog\')">Screen Time Log →</button>' +
+    '<label class="f">Minutes earned per correct answer</label>' +
+    '<div class="hint">The dial fills by this many minutes per correct answer (any mode), capped at 60. Changes apply immediately to the current period.</div>' +
+    '<div class="st-rate-row"><input type="number" min="1" id="setMinutesPerCorrect" value="' + settings.minutes_per_correct + '"/>' +
+    '<button class="btn sm" onclick="saveMinutesPerCorrect()">Save Rate</button></div>';
+}
+async function saveMinutesPerCorrect() {
+  const minutes_per_correct = parseInt($('#setMinutesPerCorrect').value, 10) || 1;
+  const daily_count = (S.settingsData && S.settingsData.daily_count) || 5;
+  const level_override = (S.settingsData && S.settingsData.level_override) || {};
+  try {
+    S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct } });
+    S.screenTime = await api('/screentime');
+    toast('Screen time rate saved');
+    render();
+  } catch (e) { showError(e); }
 }
 function confirmResetScreenTime() {
   const st = S.screenTime;
@@ -1270,9 +1295,6 @@ function settingsFormHTML(st) {
   return '<div class="settings-form"><label class="f">Level overrides (blank = adaptive)</label>' +
     '<div class="hint"><b>Adaptive</b> means the app quietly raises or lowers each skill\'s difficulty (1–10) on its own, based on his last 10 answers in that skill — a strong run levels him up, a rough one levels him down, with no one having to touch anything. Type a number here to pin a skill to that fixed level instead, overriding the automatic adjustment; clear it back to blank to let the app resume adapting from wherever his real progress is.</div>' +
     SKILLS.map(sk => '<div class="override-row"><span>' + sk.name + '</span><input type="number" min="1" max="10" id="ov_' + sk.slug + '" value="' + (st.level_override[sk.slug] || '') + '" placeholder="auto"/></div>').join('') +
-    '<label class="f">Screen time: minutes earned per correct answer</label>' +
-    '<div class="hint">The dial fills by this many minutes per correct answer (any mode), capped at 60. Changes apply immediately to the current period.</div>' +
-    '<input type="number" min="1" id="setMinutesPerCorrect" value="' + st.minutes_per_correct + '"/>' +
     '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setMuteDefault" ' + (S.muted ? 'checked' : '') + ' onchange="toggleMute()"/> Mute sound</label>' +
     '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setTimer" ' + (S.showTimer ? 'checked' : '') + ' onchange="toggleTimer()"/> Show speed timer during play</label>' +
     '<button class="btn primary" onclick="saveSettings()">Save Settings</button></div>';
@@ -1300,15 +1322,16 @@ async function runReset() {
   } catch (e) { showError(e); }
 }
 async function saveSettings() {
-  // daily_count is retained server-side (daily mode is retired in the UI);
-  // preserve its current value so the settings PUT stays valid.
+  // daily_count and minutes_per_correct are retained server-side (daily mode
+  // is retired in the UI; the screen-time rate has its own Save Rate button
+  // up in the Screen Time section) — preserve their current values so the
+  // settings PUT stays valid.
   const daily_count = (S.settingsData && S.settingsData.daily_count) || 5;
+  const minutes_per_correct = (S.settingsData && S.settingsData.minutes_per_correct) || 3;
   const level_override = {};
   for (const sk of SKILLS) { const v = $('#ov_' + sk.slug).value; if (v) level_override[sk.slug] = parseInt(v, 10); }
-  const minutes_per_correct = parseInt($('#setMinutesPerCorrect').value, 10) || 1;
   try {
     S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct } });
-    S.screenTime = await api('/screentime');
     toast('Settings saved');
     render();
   } catch (e) { showError(e); }
