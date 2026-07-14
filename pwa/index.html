@@ -271,6 +271,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .bank-levels { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 .bank-lvl { background: var(--card2); border-radius: 6px; font-size: .62rem; text-align: center; padding: 3px 5px; min-width: 30px; }
 .bank-lvl.low { background: rgba(255,82,82,.2); color: var(--red); }
+.qreview-summary { font-size: .85rem; font-weight: 700; margin-bottom: 10px; }
 .qreview-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 8px 0; }
 .qreview-row.retired { opacity: .5; }
 .qr-main { font-size: .8rem; }
@@ -496,6 +497,7 @@ async function onRoute() {
     else if (S.view === 'collection') await loadCollection();
     else if (S.view === 'quests') await loadQuests();
     else if (S.view === 'parents') await loadParents();
+    else if (S.view === 'qreview') await loadQuestionReview();
     render();
   } catch (e) { showError(e); }
 }
@@ -519,7 +521,7 @@ async function loadParents() {
 function render() {
   renderTabBar();
   const m = $('#main');
-  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents }[S.view] || renderHome)(m);
+  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents, qreview: renderQuestionReview }[S.view] || renderHome)(m);
   renderOverlay();
 }
 function renderTabBar() {
@@ -1021,7 +1023,8 @@ function renderParents(m) {
     bankHTML(p.bank) +
     '<h3>Question Review</h3>' +
     '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skylar again but stay listed here in case you want to bring one back later.</div>' +
-    questionsReviewHTML(S.questions) +
+    '<div class="qreview-summary">' + qreviewSummaryText(S.questions) + '</div>' +
+    '<button class="btn" onclick="go(\'qreview\')">Review Questions →</button>' +
     '<h3>Settings</h3>' + settingsFormHTML(st) +
     '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
     '<h3 class="danger-h">Danger Zone</h3><div class="danger-zone">' +
@@ -1070,6 +1073,23 @@ async function runGenerate(skill) {
     toast('Generated: ' + result.accepted + ' accepted, ' + result.rejected + ' rejected');
     await loadParents(); render();
   } catch (e) { showError(e); }
+}
+function qreviewSummaryText(qs) {
+  qs = qs || [];
+  if (!qs.length) return 'No AI questions yet.';
+  const retired = qs.filter(q => q.retired).length;
+  return qs.length + ' AI question' + (qs.length === 1 ? '' : 's') + ' in the bank' + (retired ? ' · ' + retired + ' retired' : '') + '.';
+}
+async function loadQuestionReview() {
+  S.questions = await api('/questions?source=ai') || [];
+}
+function renderQuestionReview(m) {
+  m.innerHTML = '<div class="parents-wrap">' +
+    '<button class="btn ghost sm" onclick="go(\'parents\')">← Back</button>' +
+    '<h2>Question Review</h2>' +
+    '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skylar again but stay listed here in case you want to bring one back later.</div>' +
+    questionsReviewHTML(S.questions) +
+    '</div>';
 }
 function questionsReviewHTML(qs) {
   if (!qs || !qs.length) return '<div class="empty">No AI questions yet</div>';
