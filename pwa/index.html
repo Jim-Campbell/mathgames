@@ -258,6 +258,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .danger-h { color: var(--red); }
 .danger-zone { border: 1px solid var(--red); border-radius: 12px; padding: 14px; background: rgba(255,82,82,.05); }
 .danger-copy { font-size: .82rem; color: var(--muted); line-height: 1.45; margin-bottom: 12px; }
+.hint { font-size: .82rem; color: var(--muted); line-height: 1.45; margin: -4px 0 12px; }
 .day-chart { width: 100%; height: auto; }
 .ptab { width: 100%; border-collapse: collapse; font-size: .8rem; min-width: 480px; }
 .ptab th, .ptab td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
@@ -1018,7 +1019,9 @@ function renderParents(m) {
     '<h3>AI Content Bank</h3>' +
     (S.aiEnabled ? '' : '<div class="ai-off-notice">⚠️ AI content generation is off — no <code>ANTHROPIC_API_KEY</code> configured on the server. Training still works from whatever\'s already in the bank; set the key and redeploy to generate more.</div>') +
     bankHTML(p.bank) +
-    '<h3>Question Review</h3>' + questionsReviewHTML(S.questions) +
+    '<h3>Question Review</h3>' +
+    '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skylar again but stay listed here in case you want to bring one back later.</div>' +
+    questionsReviewHTML(S.questions) +
     '<h3>Settings</h3>' + settingsFormHTML(st) +
     '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
     '<h3 class="danger-h">Danger Zone</h3><div class="danger-zone">' +
@@ -1049,7 +1052,7 @@ function bankHTML(bank) {
     const rows = bySkill[skill].slice().sort((a, b) => a.level - b.level);
     return '<div class="bank-skill"><div class="bank-skill-name">' + (SKILL_NAME[skill] || skill) + '</div>' +
       '<div class="bank-levels">' + rows.map(r => '<div class="bank-lvl ' + (r.available < 10 ? 'low' : '') + '" title="Level ' + r.level + ': ' + r.available + ' questions">L' + r.level + '<br>' + r.available + '</div>').join('') + '</div>' +
-      (S.aiEnabled ? '<button class="btn sm" onclick="openGenerateDialog(\'' + skill + '\')">Generate</button>' : '<button class="btn sm" disabled title="AI content generation is off">Generate</button>') + '</div>';
+      (S.aiEnabled ? '<button class="btn sm" onclick="openGenerateDialog(\'' + skill + '\')" title="Ask Claude to write a new batch of questions for this skill and add the good ones to the bank">Generate</button>' : '<button class="btn sm" disabled title="AI content generation is off">Generate</button>') + '</div>';
   }).join('');
 }
 function openGenerateDialog(skill) {
@@ -1081,7 +1084,9 @@ async function toggleRetire(id, retired) {
 }
 function settingsFormHTML(st) {
   return '<div class="settings-form"><label class="f">Daily question count</label><input id="setDailyCount" type="number" min="1" max="20" value="' + st.daily_count + '"/>' +
+    '<div class="hint">How many questions make up each day\'s Daily Challenge — the Wordle-style set with one attempt each, no retries, that resets at midnight. It\'s never just one topic: the set is a mix pulled from a rotation of the 6 core math skills plus one word-problem or logic question, so each day touches several categories at once.</div>' +
     '<label class="f">Level overrides (blank = adaptive)</label>' +
+    '<div class="hint"><b>Adaptive</b> means the app quietly raises or lowers each skill\'s difficulty (1–10) on its own, based on his last 10 answers in that skill — a strong run levels him up, a rough one levels him down, with no one having to touch anything. Type a number here to pin a skill to that fixed level instead, overriding the automatic adjustment; clear it back to blank to let the app resume adapting from wherever his real progress is.</div>' +
     SKILLS.map(sk => '<div class="override-row"><span>' + sk.name + '</span><input type="number" min="1" max="10" id="ov_' + sk.slug + '" value="' + (st.level_override[sk.slug] || '') + '" placeholder="auto"/></div>').join('') +
     '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setMuteDefault" ' + (S.muted ? 'checked' : '') + ' onchange="toggleMute()"/> Mute sound</label>' +
     '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setTimer" ' + (S.showTimer ? 'checked' : '') + ' onchange="toggleTimer()"/> Show speed timer during play</label>' +
