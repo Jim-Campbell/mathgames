@@ -49,6 +49,10 @@ func (h *GameHandler) Routes(r chi.Router) {
 	r.Get("/settings", h.getSettings)
 	r.Put("/settings", h.updateSettings)
 
+	r.Get("/screentime", h.screenTime)
+	r.Post("/screentime/reset", h.resetScreenTime)
+	r.Get("/screentime/log", h.screenTimeLog)
+
 	r.Get("/export", h.export)
 
 	r.Post("/generate", h.generate)
@@ -311,6 +315,35 @@ func (h *GameHandler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+// ---- screen time ----
+
+func (h *GameHandler) screenTime(w http.ResponseWriter, r *http.Request) {
+	st, err := h.svc.ScreenTime(r.Context())
+	if err != nil {
+		h.fail(w, "get screen time", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, st)
+}
+
+func (h *GameHandler) resetScreenTime(w http.ResponseWriter, r *http.Request) {
+	reset, err := h.svc.ResetScreenTime(r.Context())
+	if err != nil {
+		h.fail(w, "reset screen time", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, reset)
+}
+
+func (h *GameHandler) screenTimeLog(w http.ResponseWriter, r *http.Request) {
+	log, err := h.svc.ListScreenTimeLog(r.Context())
+	if err != nil {
+		h.fail(w, "list screen time log", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, log)
 }
 
 // ---- export ----

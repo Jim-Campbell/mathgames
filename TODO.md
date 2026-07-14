@@ -14,28 +14,25 @@ between sessions. Pull an item into a real plan when it's time to build it.
   can inflate the day's counts and streak. Needs either a per-question
   answered-set on `daily_results` (schema change) or a check against
   existing `attempts` rows for that session before crediting progress.
-  Low priority while play is single-sitting in practice, but worth closing
-  before the earned-screen-time ledger depends on accurate daily counts.
+  Low priority while play is single-sitting in practice. (The screen-time
+  dial is unaffected — it counts `attempts` rows directly — but daily
+  streak/counts integrity still wants this closed.)
 
-## Earned screen-time ledger (parked in ARCHITECTURE.md, rev 2+)
+## Screen time — future extensions
 
-The schema already captures what this needs (`attempts.elapsed_ms`,
-`sessions`, `daily_results`) — nothing is lost by building it later. When it
-happens:
+V1 (the dial) is designed and prompted — see Done and
+build-prompts/feature-screen-time.md. Deliberately left out of v1:
 
-- **Time restrictions**: parent-configurable limits on daily/session play
-  time, enforced client- or server-side (TBD which — server-side is more
-  tamper-resistant against a kid editing localStorage).
-- **Earning more time**: convert practice (XP, correct answers, daily
-  completion, streaks — exact formula TBD) into banked minutes redeemable
-  for other iPad time/games. Needs a redemption mechanism outside this app
-  (parental controls integration? a manual ledger a parent checks?) since
-  this app has no way to actually unlock other apps on the iPad.
-- Depends on resolving the double-counting bug above first, since banked
-  minutes are only as trustworthy as the attempt/session data feeding them.
-- Needs a design decision on where the ledger balance displays (Home? a new
-  screen? parents-only?) and whether Skylar sees his own balance or it's a
-  parents-only mechanism revealed at their discretion.
+- **Richer earning rules**: bonus minutes for daily-challenge completion,
+  streaks, or random events (a Kaio-ken that doubles minutes too?). One
+  flat per-correct rate for now; revisit once the family has lived with
+  the deal for a while.
+- **In-app time limits**: parent-configurable caps on this app's own play
+  time (server-enforced). Different feature from earning; still parked.
+- **Multi-hour banking**: the dial caps at 60 and pauses earning. If that
+  cap chafes in practice (he fills it faster than parents reset it),
+  consider letting redeemed-but-unspent hours accumulate in the log
+  instead of raising the cap.
 
 ## Ideas (unsorted, no commitment)
 
@@ -47,6 +44,36 @@ happens:
 - Daily challenge resume UX could show which specific questions are already
   answered once the double-counting fix lands (right now the "Continue"
   card just says X/N done with no per-question detail).
+
+## Random events — future event kinds
+
+The engine (build-prompts/feature-random-events.md) is a weighted registry;
+each new banner-style XP event is one struct literal, zero PWA work. Ideas
+for after Kaio-ken ×2 ships:
+
+- **Kaio-ken ×3 / ×4** — rarer, bigger multipliers (weight them low; the
+  escalation is canon).
+- **Senzu Bean** — fires on a *wrong* answer occasionally instead: the miss
+  doesn't break the streak ("the senzu bean saved you!"). Needs a small
+  engine extension (events on incorrect answers, non-XP effect).
+- **Hercule photobomb** — pure comedy, no mechanical effect, just a gag
+  overlay ("MR. SATAN claims credit for that answer!"). Cheap, and comic
+  relief events make the real ones feel bigger.
+- **Dragon radar blip** — grants progress toward a dragon ball or reveals a
+  hint about the next unlock. Needs unlock-engine integration.
+- **Instant Transmission** — skip straight to the next level-up celebration
+  if he's within N XP (top off the window). Flashy but touches the adaptive
+  ladder — design carefully or skip.
+- **Vegeta's wager** — "I bet you can't get the NEXT one right in under
+  10 seconds." Beat it → ×4 and a grudging "…not bad."; miss → nothing
+  lost. Needs a pending-challenge state the engine remembers for one
+  attempt; the did-he-rise-to-it data is scorecard gold.
+- **Spirit Bomb charge** — the next 3 correct answers each "lend energy,"
+  then the bomb releases their combined XP again as a bonus. A mini-arc
+  instead of a moment; same pending-state machinery as the wager.
+- **Hyperbolic Time Chamber** — all XP ×2 for the next 60 seconds with a
+  countdown aura. Most gameplay-warping (timed buff state, session pacing);
+  build last.
 
 ## Feature brainstorm (Claude, 2026-07-13)
 
@@ -104,9 +131,9 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
 
 ### Content & AI (build on the batch pipeline)
 
-- **Skylar-authored problems.** He writes his own word problem; an AI batch
+- **Skyler-authored problems.** He writes his own word problem; an AI batch
   call validates/solves it; accepted ones enter the bank flagged
-  `author: skylar` and can show up in *the parents'* challenge (see below)
+  `author: skyler` and can show up in *the parents'* challenge (see below)
   or his own future dailies. Writing a good problem is harder than solving
   one — perfect for a voracious reader, and it's the app's first
   creative/authorship loop.
@@ -123,7 +150,7 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
 
 ### Family & motivation
 
-- **Ghost races.** Uncle Jim (or Dad) plays the same daily set once; Skylar
+- **Ghost races.** Uncle Jim (or Dad) plays the same daily set once; Skyler
   races the recorded per-question times as a "ghost" alongside his own run.
   Async multiplayer with zero account infrastructure — just store a second
   run per day keyed to a name. Family rivalry is the strongest free
@@ -161,3 +188,20 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
   attempts/skill_state/unlocks, a player picker at launch, no auth beyond
   the existing key. Big enough to warrant a real design pass — parked here
   so it doesn't sneak in half-done.
+
+## Done
+
+- **Screen-time dial v1** — prompt written 2026-07-14
+  (build-prompts/feature-screen-time.md). Correct answers fill a ki-gauge
+  on Home at `minutes_per_correct` (default 3, settings knob), capped at
+  60; value derived from `attempts` since the last reset, never stored;
+  parents view gets a confirm-guarded Reset plus a Screen Time Log subpage
+  (reset history + current period). App is the meter, parents enforce
+  redemption.
+- **Random events batch 2: Ultra Instinct + Bulma's capsule + Elder Kai** —
+  prompt written 2026-07-14
+  (build-prompts/feature-random-events-2.md). Adds the per-event
+  eligibility predicate (Ultra Instinct: ×3 on answers under the
+  speed-bonus threshold; Elder Kai: ×2 on slow answers past the ok
+  threshold) and the flat-XP bonus field (capsule: +100 ⚡), plus per-slug
+  overlay palettes/sounds in the PWA.

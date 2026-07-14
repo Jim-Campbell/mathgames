@@ -128,6 +128,21 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .act-empty { height: 3px; width: 100%; background: var(--line); margin-top: auto; }
 .act-day { font-size: .55rem; color: var(--muted); white-space: nowrap; transform: rotate(-45deg); transform-origin: center; height: 22px; }
 
+/* ---- screen time gauge ---- */
+.gauge-wrap { text-align: center; margin: 4px 0 18px; }
+.gauge-svg { width: 220px; max-width: 66vw; height: auto; }
+.gauge-track { stroke: var(--card2); }
+.gauge-fill { stroke: var(--orange); }
+.gauge-wrap.full .gauge-fill { stroke: var(--gold); }
+.gauge-tick { stroke: var(--muted); stroke-width: 2; }
+.gauge-needle { stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
+.gauge-wrap.full .gauge-needle { stroke: var(--gold); }
+.gauge-minutes { font-size: 1.7rem; font-weight: 900; fill: var(--gold); font-variant-numeric: tabular-nums; }
+.gauge-label { font-size: .62rem; fill: var(--muted); letter-spacing: .12em; font-weight: 800; }
+.gauge-wrap.full .gauge-label { fill: var(--gold); }
+@keyframes gauge-glow { 0%,100% { filter: drop-shadow(0 0 6px rgba(255,213,74,.5)); } 50% { filter: drop-shadow(0 0 18px rgba(255,213,74,.9)); } }
+.gauge-wrap.full .gauge-svg { animation: gauge-glow 1.8s ease-in-out infinite; }
+
 /* ---- play ---- */
 .play-wrap { max-width: 560px; margin: 0 auto; }
 .play-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -178,6 +193,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .feedback.wrong .fb-title { color: var(--red); }
 .xp-fly { font-weight: 800; color: var(--gold); font-size: 1.3rem; animation: xp-float .9s ease-out; }
 @keyframes xp-float { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 1; } }
+.stt-chip { display: inline-block; margin-top: 8px; font-weight: 800; color: var(--blue); font-size: .85rem; background: rgba(79,195,247,.14); border-radius: 12px; padding: 4px 10px; }
 .fb-speed { margin-top: 8px; font-weight: 800; font-size: .9rem; letter-spacing: .04em; }
 .fb-speed.blazing { color: var(--gold); text-shadow: 0 0 12px rgba(255,213,74,.6); }
 .fb-speed.fast { color: var(--orange); }
@@ -218,6 +234,31 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .ov-sub { color: var(--muted); margin-bottom: 14px; }
 .badge-icon { font-size: 3rem; margin: 10px 0; }
 .ov-card .btn { margin-top: 16px; min-width: 180px; }
+.ov-event { cursor: pointer; }
+.ov-event-flash { background: radial-gradient(circle, rgba(255,82,82,.65), transparent 65%); animation: kaioken-pulse 1s ease-in-out infinite; }
+@keyframes kaioken-pulse { 0%,100% { transform: scale(1); opacity: .75; } 50% { transform: scale(1.18); opacity: 1; } }
+.ov-event-name { color: var(--red); font-size: 2.1rem; text-shadow: 0 0 24px rgba(255,82,82,.85); animation: kaioken-shake .35s ease-in-out infinite; }
+@keyframes kaioken-shake { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-3px,1px); } 50% { transform: translate(3px,-1px); } 75% { transform: translate(-2px,-2px); } }
+.ov-event .ov-sub { color: var(--text); font-weight: 700; }
+.ov-event-xp { font-weight: 900; font-size: 1.3rem; color: var(--gold); margin-top: 8px; }
+
+/* Ultra Instinct: cool, calm, silver-white — a floaty pulse, no shake. */
+.ov-event-ultra_instinct .ov-event-flash { background: radial-gradient(circle, rgba(230,240,255,.7), transparent 65%); animation: ultra-pulse 2.2s ease-in-out infinite; }
+@keyframes ultra-pulse { 0%,100% { transform: scale(1); opacity: .6; } 50% { transform: scale(1.1); opacity: .95; } }
+.ov-event-ultra_instinct .ov-event-name { color: #eef4ff; text-shadow: 0 0 26px rgba(200,220,255,.9); animation: none; }
+
+/* Bulma's Capsule: Capsule Corp teal/yellow, a capsule pop instead of a flash. */
+.ov-event-capsule .ov-event-flash { background: radial-gradient(circle, rgba(78,205,196,.55), transparent 65%); animation: kaioken-pulse 1.4s ease-in-out infinite; }
+.ov-event-capsule .ov-event-name { color: #ffd54a; text-shadow: 0 0 22px rgba(78,205,196,.8); animation: none; }
+.ov-capsule-icon { width: 64px; height: 64px; margin: 6px auto; animation: capsule-pop .6s ease-out; }
+@keyframes capsule-pop { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.ov-event-capsule .ov-event-xp { color: #ffd54a; }
+
+/* Elder Kai's Ritual: mystic purple, solemn slow pulse, no shake. */
+.ov-event-elder_kai .ov-event-flash { background: radial-gradient(circle, rgba(138,79,255,.6), transparent 65%); animation: elderkai-pulse 2.6s ease-in-out infinite; }
+@keyframes elderkai-pulse { 0%,100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.08); opacity: .9; } }
+.ov-event-elder_kai .ov-event-name { color: #c9a8ff; text-shadow: 0 0 26px rgba(138,79,255,.85); animation: none; }
+.ov-tap-hint { color: var(--muted); font-size: .78rem; margin-top: 16px; text-transform: uppercase; letter-spacing: .06em; }
 
 /* ---- collection ---- */
 .db-tray { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
@@ -268,6 +309,10 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .bank-levels { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 .bank-lvl { background: var(--card2); border-radius: 6px; font-size: .62rem; text-align: center; padding: 3px 5px; min-width: 30px; }
 .bank-lvl.low { background: rgba(255,82,82,.2); color: var(--red); }
+.st-block { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.st-dial-value { font-size: 1.4rem; font-weight: 900; color: var(--gold); }
+.st-sub { font-size: .78rem; color: var(--muted); }
+.st-current-row { background: rgba(255,213,74,.1); border-color: var(--gold); }
 .qreview-summary { font-size: .85rem; font-weight: 700; margin-bottom: 10px; }
 .qreview-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 8px 0; }
 .qreview-row.retired { opacity: .5; }
@@ -336,6 +381,7 @@ const S = {
   seenOver9000: localStorage.getItem('mg_seen_over9000') === '1',
   offline: false, aiEnabled: true,
   taunt: TAUNTS[Math.floor(Math.random() * TAUNTS.length)],
+  screenTime: null, screenTimeFullSeen: false, screenTimeLog: null,
 };
 
 // ---------- api ----------
@@ -430,6 +476,10 @@ const sfx = (() => {
     levelup() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * .09, .18, 'triangle', .2)); },
     unlockFanfare() { tone(392, 0, .12, 'square', .13); tone(523, .08, .12, 'square', .13); tone(659, .16, .32, 'square', .16); sweep(700, 1500, .05, .4, 'sine', .07); },
     over9000() { [261, 329, 392, 523, 659, 784, 1047].forEach((f, i) => tone(f, i * .07, .22, 'sawtooth', .18)); sweep(200, 2200, .1, .9, 'sawtooth', .09); },
+    kaioken() { sweep(180, 1400, 0, .32, 'sawtooth', .24); tone(220, .28, .12, 'square', .22); tone(140, .38, .18, 'square', .22); },
+    ultrainstinct() { sweep(600, 1800, 0, .5, 'sine', .1); sweep(900, 2200, .12, .5, 'sine', .08); tone(1760, .3, .4, 'sine', .07); },
+    capsule() { tone(300, 0, .08, 'square', .18); tone(900, .06, .1, 'triangle', .16); tone(1400, .14, .12, 'sine', .14); tone(1800, .2, .14, 'sine', .12); },
+    elderkai() { sweep(90, 130, 0, .9, 'sawtooth', .12); tone(261, .85, .3, 'triangle', .16); tone(329, .9, .3, 'triangle', .14); tone(392, .95, .35, 'triangle', .16); },
   };
 })();
 document.addEventListener('pointerdown', function once() { sfx.unlockAudio(); document.removeEventListener('pointerdown', once); }, { once: true });
@@ -494,30 +544,40 @@ async function onRoute() {
     else if (S.view === 'quests') await loadQuests();
     else if (S.view === 'parents') await loadParents();
     else if (S.view === 'qreview') await loadQuestionReview();
+    else if (S.view === 'stlog') await loadScreenTimeLog();
     render();
   } catch (e) { showError(e); }
 }
 
 async function loadHome() {
-  const [profile, collection] = await Promise.all([api('/profile'), api('/collection')]);
+  const [profile, collection, screenTime] = await Promise.all([api('/profile'), api('/collection'), api('/screentime')]);
   S.profile = profile; S.collection = collection;
+  applyScreenTime(screenTime);
   S.taunt = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
 }
 async function loadCollection() { S.collection = await api('/collection'); }
 async function loadQuests() { S.quests = await api('/quests'); }
 async function loadParents() {
-  const [summary, settings, questions, health] = await Promise.all([
+  const [summary, settings, questions, health, screenTime] = await Promise.all([
     api('/parents/summary?days=30'), api('/settings'), api('/questions?source=ai'),
-    fetch('/api/health').then(r => r.json()).catch(() => ({ ai: true })),
+    fetch('/api/health').then(r => r.json()).catch(() => ({ ai: true })), api('/screentime'),
   ]);
   S.parents = summary; S.settingsData = settings; S.questions = questions || []; S.aiEnabled = !!health.ai;
+  applyScreenTime(screenTime);
+}
+async function loadScreenTimeLog() { S.screenTimeLog = await api('/screentime/log') || []; }
+// applyScreenTime tracks the full-state transition in S so the fanfare plays
+// once when the dial fills, not on every Home render (it re-fetches often).
+function applyScreenTime(st) {
+  S.screenTime = st;
+  if (!st.full) S.screenTimeFullSeen = false;
 }
 
 // ---------- render dispatch ----------
 function render() {
   renderTabBar();
   const m = $('#main');
-  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents, qreview: renderQuestionReview }[S.view] || renderHome)(m);
+  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents, qreview: renderQuestionReview, stlog: renderScreenTimeLog }[S.view] || renderHome)(m);
   renderOverlay();
 }
 function renderTabBar() {
@@ -536,7 +596,8 @@ function renderHome(m) {
   const p = S.profile;
   if (!p) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
   m.innerHTML =
-    '<div class="hero-banner"><div class="hero-kicker">⚡ SKYLAR\'S TRAINING GROUNDS ⚡</div><div class="hero-taunt">"' + esc(S.taunt) + '"</div></div>' +
+    '<div class="hero-banner"><div class="hero-kicker">⚡ SKYLER\'S TRAINING GROUNDS ⚡</div><div class="hero-taunt">"' + esc(S.taunt) + '"</div></div>' +
+    (S.screenTime ? gaugeSVG(S.screenTime) : '') +
     '<div class="power-block"><div class="power-aura"></div><div class="power-num" id="powerNum">' + fmtInt(p.power_level) + '</div><div class="power-label">POWER LEVEL</div></div>' +
     '<button class="train-btn" onclick="startTraining(\'mixed\')">⚡ GET RANDOM POWER</button>' +
     '<h3>Skills</h3><div class="skill-chips">' + SKILLS.map(sk =>
@@ -545,8 +606,62 @@ function renderHome(m) {
     activityBarHTML(p.days) +
     recentUnlocksHTML();
   animatePowerNum(p.power_level);
+  if (S.screenTime) animateGaugeNeedle(S.screenTime);
   const strip = document.querySelector('.activity-scroll');
   if (strip) strip.scrollLeft = strip.scrollWidth; // newest day (rightmost) in view
+}
+
+// ---------- screen-time ki gauge (scouter-style semicircle, 0-60 min) ----------
+// Angle convention: 0deg points left (9 o'clock, 0 min), sweeping clockwise
+// over the top (12 o'clock, 30 min) to right (3 o'clock, 60 min = cap).
+function gaugeNeedlePoint(minutes, cap, len) {
+  const angle = (Math.min(minutes, cap) / cap) * 180; // 0..180, clockwise from left
+  const rad = (180 - angle) * Math.PI / 180; // convert to standard math angle for cos/sin
+  return { x: 100 + len * Math.cos(rad), y: 100 - len * Math.sin(rad) };
+}
+function gaugeSVG(st) {
+  const full = st.full;
+  const pct = Math.min(100, (st.minutes_earned / st.minutes_cap) * 100);
+  const ticks = [];
+  for (let v = 0; v <= st.minutes_cap; v += 10) {
+    const inner = gaugeNeedlePoint(v, st.minutes_cap, 72);
+    const outer = gaugeNeedlePoint(v, st.minutes_cap, 82);
+    ticks.push('<line class="gauge-tick" x1="' + inner.x.toFixed(1) + '" y1="' + inner.y.toFixed(1) + '" x2="' + outer.x.toFixed(1) + '" y2="' + outer.y.toFixed(1) + '"/>');
+  }
+  const label = full ? 'MAXIMUM POWER — 1 HOUR EARNED!' : 'SCREEN TIME';
+  return '<div class="gauge-wrap ' + (full ? 'full' : '') + '" id="gaugeWrap">' +
+    '<svg viewBox="0 0 200 118" class="gauge-svg">' +
+    '<path class="gauge-track" d="M 20,100 A 80,80 0 0 1 180,100" fill="none" stroke-width="10" stroke-linecap="round" pathLength="100"/>' +
+    '<path class="gauge-fill" d="M 20,100 A 80,80 0 0 1 180,100" fill="none" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="' + pct.toFixed(1) + ' 100"/>' +
+    ticks.join('') +
+    '<line id="gaugeNeedle" class="gauge-needle" x1="100" y1="100" x2="30" y2="100"/>' +
+    '<circle cx="100" cy="100" r="5" fill="var(--text)"/>' +
+    '<text x="100" y="90" text-anchor="middle" class="gauge-minutes">' + st.minutes_earned + ' min</text>' +
+    '<text x="100" y="108" text-anchor="middle" class="gauge-label">' + esc(label) + '</text>' +
+    '</svg></div>';
+}
+let lastGaugeMinutesShown = null;
+function animateGaugeNeedle(st) {
+  const needle = document.getElementById('gaugeNeedle');
+  if (!needle) return;
+  const target = Math.min(st.minutes_earned, st.minutes_cap);
+  const wasFull = S.screenTimeFullSeen;
+  if (st.full && !wasFull) { S.screenTimeFullSeen = true; if (!reducedMotion()) setTimeout(() => sfx.unlockFanfare(), 300); }
+
+  const start = (lastGaugeMinutesShown == null || reducedMotion()) ? target : lastGaugeMinutesShown;
+  lastGaugeMinutesShown = target;
+  function place(v) {
+    const p = gaugeNeedlePoint(v, st.minutes_cap, 68);
+    needle.setAttribute('x2', p.x.toFixed(1)); needle.setAttribute('y2', p.y.toFixed(1));
+  }
+  if (start === target || reducedMotion()) { place(target); return; }
+  const dur = 700, t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    place(start + (target - start) * p);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 // Continuous last-30-day strip of correct/wrong bars, newest on the right.
 function activityBarHTML(days) {
@@ -603,13 +718,13 @@ function animatePowerNum(target) {
 // ---------- PLAY: session lifecycle ----------
 async function startTraining(skill) {
   const sess = await api('/sessions', { method: 'POST', body: { mode: 'training' } });
-  S.session = { id: sess.id, mode: 'training', skill, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, bankLowWarned: new Set() };
+  S.session = { id: sess.id, mode: 'training', skill, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, bankLowWarned: new Set(), screenTimeMinutes: (S.screenTime && S.screenTime.minutes_earned) || 0 };
   go('play');
   await loadNextQuestion();
 }
 async function startQuest(chapter) {
   const sess = await api('/sessions', { method: 'POST', body: { mode: 'quest' } });
-  S.session = { id: sess.id, mode: 'quest', chapter, skillCycle: chapter.requirement.skills, skillCycleIdx: 0, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, bankLowWarned: new Set() };
+  S.session = { id: sess.id, mode: 'quest', chapter, skillCycle: chapter.requirement.skills, skillCycleIdx: 0, xpEarned: 0, curStreak: 0, streakBest: 0, correct: 0, total: 0, bankLowWarned: new Set(), screenTimeMinutes: (S.screenTime && S.screenTime.minutes_earned) || 0 };
   go('play');
   await loadNextQuestion();
 }
@@ -691,7 +806,13 @@ function afterAttempt(result, elapsedMs) {
   // Capture the speed zone he landed in, from the same thresholds the server
   // scored with, so correct feedback can celebrate a speed bonus honestly.
   const zone = S.current ? kiZone(elapsedMs, S.current.difficulty) : 'base';
-  S.feedback = Object.assign({}, result, { dismissable: result.correct, speedZone: zone });
+  // Screen-time tick: chip only when the dial actually moved and isn't
+  // already pinned at the cap (that moment gets the Home gauge's own
+  // full-state celebration instead).
+  const prevMinutes = sess.screenTimeMinutes || 0;
+  const sttDelta = result.screen_time_minutes > prevMinutes && result.screen_time_minutes < 60 ? result.screen_time_minutes - prevMinutes : 0;
+  sess.screenTimeMinutes = Math.max(prevMinutes, result.screen_time_minutes || 0);
+  S.feedback = Object.assign({}, result, { dismissable: result.correct, speedZone: zone, sttDelta });
   render();
   playFeedbackSfx(result);
 
@@ -703,6 +824,7 @@ async function continueAfterFeedback() {
   const result = S.feedback, skill = S.current.skill;
   S.feedback = null;
   const overlays = [];
+  if (result.event) overlays.push({ type: 'event', event: result.event, xpEarned: result.xp_earned });
   if (result.level_changed > 0) overlays.push({ type: 'levelup', skill, level: result.skill_level });
   if (!S.seenOver9000 && result.power_level_before < 9000 && result.power_level >= 9000) {
     overlays.push({ type: 'over9000' }); localStorage.setItem('mg_seen_over9000', '1'); S.seenOver9000 = true;
@@ -721,13 +843,20 @@ async function continueAfterFeedback() {
   S.locked = false;
   advanceOverlay();
 }
+let eventDismissTimer = null;
 function advanceOverlay() {
+  if (eventDismissTimer) { clearTimeout(eventDismissTimer); eventDismissTimer = null; }
   if (S.overlayQueue && S.overlayQueue.length) {
     S.currentOverlay = S.overlayQueue.shift();
     const t = S.currentOverlay.type;
     if (t === 'levelup') sfx.levelup();
     else if (t === 'unlock') sfx.unlockFanfare();
     else if (t === 'over9000') sfx.over9000();
+    else if (t === 'event') {
+      const eventSfx = { ultra_instinct: 'ultrainstinct', capsule: 'capsule', elder_kai: 'elderkai' }[S.currentOverlay.event.slug] || 'kaioken';
+      sfx[eventSfx]();
+      eventDismissTimer = setTimeout(advanceOverlay, 2500);
+    }
     render();
   } else {
     S.currentOverlay = null;
@@ -874,7 +1003,8 @@ function feedbackHTML() {
   if (f.correct) {
     const speedTag = f.speedZone === 'blazing' ? '<div class="fb-speed blazing">⚡ BLAZING FAST · +50%</div>'
       : f.speedZone === 'fast' ? '<div class="fb-speed fast">⚡ Fast · +20%</div>' : '';
-    return '<div class="feedback correct"><div class="fb-title">✅ Correct!</div><div class="xp-fly">+' + f.xp_earned + ' ⚡' + (f.zenkai ? ' 🔥 ZENKAI x2!' : '') + '</div>' + speedTag + '</div>';
+    const sttChip = f.sttDelta > 0 ? '<div class="stt-chip">+' + f.sttDelta + ' min ⏱</div>' : '';
+    return '<div class="feedback correct"><div class="fb-title">✅ Correct!</div><div class="xp-fly">+' + f.xp_earned + ' ⚡' + (f.zenkai ? ' 🔥 ZENKAI x2!' : '') + '</div>' + speedTag + sttChip + '</div>';
   }
   return '<div class="feedback wrong"><div class="fb-title">Not quite</div>' +
     '<div class="fb-answer">Answer: ' + esc(formatAnswer(S.current.payload.kind, f.answer)) + '</div>' +
@@ -896,8 +1026,21 @@ function renderOverlay() {
   if (!S.currentOverlay) { root.classList.remove('show'); root.innerHTML = ''; return; }
   root.classList.add('show');
   const o = S.currentOverlay;
+  root.onclick = o.type === 'event' ? advanceOverlay : null;
   let html = '';
-  if (o.type === 'levelup') {
+  if (o.type === 'event') {
+    const e = o.event;
+    const capsuleIcon = e.slug === 'capsule'
+      ? '<svg class="ov-capsule-icon" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#4ecdc4"/><path d="M6 32a26 26 0 0 1 52 0" fill="#ffd54a"/><circle cx="32" cy="32" r="26" fill="none" stroke="#04203a" stroke-width="2"/><line x1="6" y1="32" x2="58" y2="32" stroke="#04203a" stroke-width="2"/></svg>'
+      : '';
+    html = '<div class="ov-card ov-event ov-event-' + esc(e.slug) + '">' +
+      '<div class="ov-flash big ov-event-flash"></div>' +
+      '<h2 class="ov-event-name">' + esc(e.name) + '</h2>' +
+      capsuleIcon +
+      '<div class="ov-sub">' + esc(e.message) + '</div>' +
+      '<div class="ov-event-xp">' + esc(e.multiplier) + ' &middot; +' + fmtInt(e.xp_before) + ' ⚡ &rarr; +' + fmtInt(o.xpEarned) + ' ⚡</div>' +
+      '<div class="ov-tap-hint">Tap to continue</div></div>';
+  } else if (o.type === 'levelup') {
     html = '<div class="ov-card levelup"><div class="ov-flash"></div><h2>LEVEL UP!</h2><div class="ov-sub">' + (SKILL_NAME[o.skill] || o.skill) + ' is now Level ' + o.level + '</div><button class="btn primary" onclick="advanceOverlay()">Nice!</button></div>';
   } else if (o.type === 'over9000') {
     html = '<div class="ov-card over9000"><div class="ov-flash big"></div><h2>IT’S OVER 9000!!</h2><div class="ov-sub">Power level has broken the scouter.</div><button class="btn primary" onclick="advanceOverlay()">WOOHOO!</button></div>';
@@ -997,17 +1140,18 @@ function renderParents(m) {
     p.per_skill.map(s => '<tr><td>' + (SKILL_NAME[s.skill] || s.skill) + '</td><td>' + s.level + '</td><td>' + s.attempts + '</td><td>' + (s.correct_bp / 100).toFixed(1) + '%</td><td>' + (s.median_ms / 1000).toFixed(1) + 's</td><td>' + (s.trend > 0 ? '↑' : s.trend < 0 ? '↓' : '→') + '</td></tr>').join('') +
     '</tbody></table></div>' +
     '<h3>Recent Misses</h3>' + (p.recent_misses.length ? '<div class="miss-list">' + p.recent_misses.map(missHTML).join('') + '</div>' : '<div class="empty">No recent misses</div>') +
+    '<h3>Screen Time</h3>' + screenTimeBlockHTML(S.screenTime) +
     '<h3>AI Content Bank</h3>' +
     (S.aiEnabled ? '' : '<div class="ai-off-notice">⚠️ AI content generation is off — no <code>ANTHROPIC_API_KEY</code> configured on the server. Training still works from whatever\'s already in the bank; set the key and redeploy to generate more.</div>') +
     bankHTML(p.bank) +
     '<h3>Question Review</h3>' +
-    '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skylar again but stay listed here in case you want to bring one back later.</div>' +
+    '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skyler again but stay listed here in case you want to bring one back later.</div>' +
     '<div class="qreview-summary">' + qreviewSummaryText(S.questions) + '</div>' +
     '<button class="btn" onclick="go(\'qreview\')">Review Questions →</button>' +
     '<h3>Settings</h3>' + settingsFormHTML(st) +
     '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
     '<h3 class="danger-h">Danger Zone</h3><div class="danger-zone">' +
-    '<div class="danger-copy">Reset all of Skylar’s progress back to zero — power level, XP, levels, streaks, unlocks, daily history, and quest progress. The question bank and saga stories are kept. <b>This cannot be undone</b> (export a backup first).</div>' +
+    '<div class="danger-copy">Reset all of Skyler’s progress back to zero — power level, XP, levels, streaks, unlocks, daily history, and quest progress. The question bank and saga stories are kept. <b>This cannot be undone</b> (export a backup first).</div>' +
     '<button class="btn danger" onclick="confirmReset()">↺ Reset All Progress</button></div>' +
     '<div class="version">DBZ Math Training · v1.0</div></div>';
 }
@@ -1026,6 +1170,42 @@ function dayChartSVG(perDay) {
 }
 function missHTML(mi) {
   return '<div class="miss-row"><div class="miss-prompt">' + esc(mi.prompt) + '</div><div class="miss-detail">He said <b>' + esc(fmtLoose(mi.given)) + '</b> · answer <b>' + esc(fmtLoose(mi.answer)) + '</b> · ' + (SKILL_NAME[mi.skill] || mi.skill) + ' · ' + mi.day + '</div></div>';
+}
+function screenTimeBlockHTML(st) {
+  if (!st) return '<div class="empty">Loading…</div>';
+  return '<div class="st-block"><div><div class="st-dial-value">' + st.minutes_earned + ' / ' + st.minutes_cap + ' min</div>' +
+    '<div class="st-sub">' + st.corrects_since_reset + ' correct' + (st.corrects_since_reset === 1 ? '' : 's') + ' since ' + (st.since_reset ? new Date(st.since_reset).toLocaleDateString() : 'the start') + (st.full ? ' · MAXIMUM POWER!' : '') + '</div></div>' +
+    '<button class="btn' + (st.minutes_earned === 0 ? ' ghost' : ' primary') + ' sm" ' + (st.minutes_earned === 0 ? 'disabled' : '') + ' onclick="confirmResetScreenTime()">Reset</button></div>' +
+    '<button class="btn ghost sm" onclick="go(\'stlog\')">Screen Time Log →</button>';
+}
+function confirmResetScreenTime() {
+  const st = S.screenTime;
+  if (!st || st.minutes_earned === 0) return;
+  openDialog('<h2>Reset the dial?</h2><p class="muted">' + st.minutes_earned + ' min will be marked redeemed.</p>' +
+    '<div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn primary" onclick="closeDialog(); runResetScreenTime()">Reset</button></div>');
+}
+async function runResetScreenTime() {
+  try {
+    await api('/screentime/reset', { method: 'POST' });
+    S.screenTime = await api('/screentime');
+    S.screenTimeFullSeen = false;
+    toast('Screen time dial reset');
+    render();
+  } catch (e) { showError(e); }
+}
+function renderScreenTimeLog(m) {
+  const log = S.screenTimeLog, st = S.screenTime;
+  if (!log || !st) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
+  const currentRow = '<tr class="st-current-row"><td>Current</td><td>' + st.minutes_earned + ' min</td><td>' + st.corrects_since_reset + '</td></tr>';
+  const rows = log.map(r => '<tr><td>' + new Date(r.reset_at).toLocaleString() + '</td><td>' + r.minutes_redeemed + ' min</td><td>' + r.corrects_counted + '</td></tr>').join('');
+  m.innerHTML = '<div class="parents-wrap">' +
+    '<button class="btn ghost sm" onclick="go(\'parents\')">← Back</button>' +
+    '<h2>Screen Time Log</h2>' +
+    '<div class="hint">The in-progress period is highlighted at the top; every row below is a past parent reset, newest first.</div>' +
+    '<div class="scrollx"><table class="ptab"><thead><tr><th>Reset At</th><th>Minutes</th><th>Corrects</th></tr></thead><tbody>' +
+    currentRow + (rows || '<tr><td colspan="3" class="muted">No resets yet</td></tr>') +
+    '</tbody></table></div></div>';
 }
 function bankHTML(bank) {
   const bySkill = {};
@@ -1066,7 +1246,7 @@ function renderQuestionReview(m) {
   m.innerHTML = '<div class="parents-wrap">' +
     '<button class="btn ghost sm" onclick="go(\'parents\')">← Back</button>' +
     '<h2>Question Review</h2>' +
-    '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skylar again but stay listed here in case you want to bring one back later.</div>' +
+    '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skyler again but stay listed here in case you want to bring one back later.</div>' +
     questionsReviewHTML(S.questions) +
     '</div>';
 }
@@ -1090,6 +1270,9 @@ function settingsFormHTML(st) {
   return '<div class="settings-form"><label class="f">Level overrides (blank = adaptive)</label>' +
     '<div class="hint"><b>Adaptive</b> means the app quietly raises or lowers each skill\'s difficulty (1–10) on its own, based on his last 10 answers in that skill — a strong run levels him up, a rough one levels him down, with no one having to touch anything. Type a number here to pin a skill to that fixed level instead, overriding the automatic adjustment; clear it back to blank to let the app resume adapting from wherever his real progress is.</div>' +
     SKILLS.map(sk => '<div class="override-row"><span>' + sk.name + '</span><input type="number" min="1" max="10" id="ov_' + sk.slug + '" value="' + (st.level_override[sk.slug] || '') + '" placeholder="auto"/></div>').join('') +
+    '<label class="f">Screen time: minutes earned per correct answer</label>' +
+    '<div class="hint">The dial fills by this many minutes per correct answer (any mode), capped at 60. Changes apply immediately to the current period.</div>' +
+    '<input type="number" min="1" id="setMinutesPerCorrect" value="' + st.minutes_per_correct + '"/>' +
     '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setMuteDefault" ' + (S.muted ? 'checked' : '') + ' onchange="toggleMute()"/> Mute sound</label>' +
     '<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" id="setTimer" ' + (S.showTimer ? 'checked' : '') + ' onchange="toggleTimer()"/> Show speed timer during play</label>' +
     '<button class="btn primary" onclick="saveSettings()">Save Settings</button></div>';
@@ -1100,7 +1283,7 @@ function toggleTimer() {
 }
 function confirmReset() {
   openDialog('<h2>Reset everything?</h2>' +
-    '<div class="dc-sub" style="margin-bottom:14px">This wipes all of Skylar’s progress and <b>cannot be undone</b>. Type <b>RESET</b> below to confirm.</div>' +
+    '<div class="dc-sub" style="margin-bottom:14px">This wipes all of Skyler’s progress and <b>cannot be undone</b>. Type <b>RESET</b> below to confirm.</div>' +
     '<input id="resetConfirm" type="text" placeholder="RESET" autocapitalize="characters" autocomplete="off"/>' +
     '<div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Cancel</button>' +
     '<button class="btn danger" onclick="runReset()">Reset All Progress</button></div>');
@@ -1122,8 +1305,13 @@ async function saveSettings() {
   const daily_count = (S.settingsData && S.settingsData.daily_count) || 5;
   const level_override = {};
   for (const sk of SKILLS) { const v = $('#ov_' + sk.slug).value; if (v) level_override[sk.slug] = parseInt(v, 10); }
-  try { S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override } }); toast('Settings saved'); }
-  catch (e) { showError(e); }
+  const minutes_per_correct = parseInt($('#setMinutesPerCorrect').value, 10) || 1;
+  try {
+    S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct } });
+    S.screenTime = await api('/screentime');
+    toast('Settings saved');
+    render();
+  } catch (e) { showError(e); }
 }
 async function downloadExport() {
   try {

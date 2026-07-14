@@ -19,7 +19,7 @@ content in reviewed batches; it never grades or writes game state.
 2. `internal/ai/generate.go`: one generation call per batch, per
    ARCHITECTURE.md → "AI content generation":
    - System prompts per kind (`word_problems`, `logic`, `story`) embedding
-     Skylar's profile, the difficulty rubric for the requested level, the
+     Skyler's profile, the difficulty rubric for the requested level, the
      exact payload/answer JSON shapes, and the last 50 prompts at that
      skill×level for repeat avoidance.
    - Word problems must include a `check` field — an integer arithmetic

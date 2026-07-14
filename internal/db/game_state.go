@@ -18,17 +18,41 @@ func isNoRows(err error) bool {
 
 // ---- attempts ----
 
+// nullableString turns an empty string into SQL NULL, for optional TEXT
+// columns like attempts.event.
+func nullableString(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
 func (d *DB) InsertAttempt(ctx context.Context, a *game.Attempt) error {
 	err := d.pool.QueryRow(ctx, `
-		INSERT INTO attempts (session_id, question_id, skill, difficulty, given, correct, elapsed_ms, xp_earned, streak_after, level_after)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		INSERT INTO attempts (session_id, question_id, skill, difficulty, given, correct, elapsed_ms, xp_earned, streak_after, level_after, event)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		RETURNING id, created_at`,
-		a.SessionID, a.QuestionID, a.Skill, a.Difficulty, nullableRaw(a.Given), a.Correct, a.ElapsedMS, a.XPEarned, a.StreakAfter, a.LevelAfter).
+		a.SessionID, a.QuestionID, a.Skill, a.Difficulty, nullableRaw(a.Given), a.Correct, a.ElapsedMS, a.XPEarned, a.StreakAfter, a.LevelAfter, nullableString(a.Event)).
 		Scan(&a.ID, &a.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert attempt: %w", err)
 	}
 	return nil
+}
+
+// AttemptsSinceLastEvent counts attempts newer than the most recent attempt
+// whose event fired (or every attempt, if none has), for the random-event
+// cooldown.
+func (d *DB) AttemptsSinceLastEvent(ctx context.Context) (int, error) {
+	var count int
+	err := d.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM attempts
+		WHERE id > COALESCE((SELECT MAX(id) FROM attempts WHERE event IS NOT NULL), 0)`).
+		Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("attempts since last event: %w", err)
+	}
+	return count, nil
 }
 
 func (d *DB) HasAttempt(ctx context.Context, sessionID, questionID int64) (bool, error) {
@@ -409,8 +433,8 @@ func (d *DB) ListDailyResults(ctx context.Context, sinceDay string) ([]game.Dail
 func (d *DB) GetSettings(ctx context.Context) (*game.Settings, error) {
 	var s game.Settings
 	var overrideJSON []byte
-	err := d.pool.QueryRow(ctx, `SELECT id, daily_count, level_override, updated_at FROM settings WHERE id = 1`).
-		Scan(&s.ID, &s.DailyCount, &overrideJSON, &s.UpdatedAt)
+	err := d.pool.QueryRow(ctx, `SELECT id, daily_count, level_override, minutes_per_correct, updated_at FROM settings WHERE id = 1`).
+		Scan(&s.ID, &s.DailyCount, &overrideJSON, &s.MinutesPerCorrect, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get settings: %w", err)
 	}
@@ -430,12 +454,76 @@ func (d *DB) UpdateSettings(ctx context.Context, s *game.Settings) error {
 		return fmt.Errorf("marshal level_override: %w", err)
 	}
 	_, err = d.pool.Exec(ctx, `
-		UPDATE settings SET daily_count = $1, level_override = $2, updated_at = NOW() WHERE id = 1`,
-		s.DailyCount, overrideJSON)
+		UPDATE settings SET daily_count = $1, level_override = $2, minutes_per_correct = $3, updated_at = NOW() WHERE id = 1`,
+		s.DailyCount, overrideJSON, s.MinutesPerCorrect)
 	if err != nil {
 		return fmt.Errorf("update settings: %w", err)
 	}
 	return nil
+}
+
+// ---- screen time ----
+
+func (d *DB) CountCorrectsSince(ctx context.Context, since *time.Time) (int, error) {
+	var count int
+	var err error
+	if since == nil {
+		err = d.pool.QueryRow(ctx, `SELECT COUNT(*) FROM attempts WHERE correct`).Scan(&count)
+	} else {
+		err = d.pool.QueryRow(ctx, `SELECT COUNT(*) FROM attempts WHERE correct AND created_at >= $1`, *since).Scan(&count)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("count corrects since: %w", err)
+	}
+	return count, nil
+}
+
+func (d *DB) InsertScreenTimeReset(ctx context.Context, r *game.ScreenTimeReset) error {
+	err := d.pool.QueryRow(ctx, `
+		INSERT INTO screen_time_resets (minutes_redeemed, corrects_counted)
+		VALUES ($1,$2)
+		RETURNING id, reset_at`,
+		r.MinutesRedeemed, r.CorrectsCounted).
+		Scan(&r.ID, &r.ResetAt)
+	if err != nil {
+		return fmt.Errorf("insert screen time reset: %w", err)
+	}
+	return nil
+}
+
+func (d *DB) LastScreenTimeReset(ctx context.Context) (*game.ScreenTimeReset, error) {
+	var r game.ScreenTimeReset
+	err := d.pool.QueryRow(ctx, `
+		SELECT id, reset_at, minutes_redeemed, corrects_counted
+		FROM screen_time_resets ORDER BY reset_at DESC LIMIT 1`).
+		Scan(&r.ID, &r.ResetAt, &r.MinutesRedeemed, &r.CorrectsCounted)
+	if err != nil {
+		if isNoRows(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("last screen time reset: %w", err)
+	}
+	return &r, nil
+}
+
+func (d *DB) ListScreenTimeResets(ctx context.Context) ([]game.ScreenTimeReset, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT id, reset_at, minutes_redeemed, corrects_counted
+		FROM screen_time_resets ORDER BY reset_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("list screen time resets: %w", err)
+	}
+	defer rows.Close()
+
+	var out []game.ScreenTimeReset
+	for rows.Next() {
+		var r game.ScreenTimeReset
+		if err := rows.Scan(&r.ID, &r.ResetAt, &r.MinutesRedeemed, &r.CorrectsCounted); err != nil {
+			return nil, fmt.Errorf("scan screen time reset: %w", err)
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 // ---- admin ----

@@ -39,6 +39,11 @@ type Store interface {
 	// parents summary (GET /api/parents/summary).
 	ListAttempts(ctx context.Context, since time.Time) ([]Attempt, error)
 
+	// AttemptsSinceLastEvent counts attempts newer than the most recent
+	// attempt whose event is non-null (or every attempt, if none has ever
+	// fired) -- the random-event cooldown counter.
+	AttemptsSinceLastEvent(ctx context.Context) (int, error)
+
 	// ---- skill state ----
 
 	GetSkillState(ctx context.Context, skill string) (*SkillState, error)
@@ -92,6 +97,18 @@ type Store interface {
 
 	GetSettings(ctx context.Context) (*Settings, error)
 	UpdateSettings(ctx context.Context, s *Settings) error
+
+	// ---- screen time ----
+
+	// CountCorrectsSince counts correct attempts created at or after since;
+	// nil means "all time" (used when no reset has ever happened).
+	CountCorrectsSince(ctx context.Context, since *time.Time) (int, error)
+	InsertScreenTimeReset(ctx context.Context, r *ScreenTimeReset) error
+	// LastScreenTimeReset returns the most recent reset, or nil if none has
+	// happened yet.
+	LastScreenTimeReset(ctx context.Context) (*ScreenTimeReset, error)
+	// ListScreenTimeResets returns every reset, newest first.
+	ListScreenTimeResets(ctx context.Context) ([]ScreenTimeReset, error)
 
 	// ---- export ----
 

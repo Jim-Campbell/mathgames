@@ -129,23 +129,37 @@ type Attempt struct {
 	XPEarned    int             `json:"xp_earned"`
 	StreakAfter int             `json:"streak_after"`
 	LevelAfter  int             `json:"level_after"`
+	Event       string          `json:"event,omitempty"`
 	CreatedAt   time.Time       `json:"created_at"`
 }
 
 // AttemptResult is what POST /api/attempts returns: everything the PWA
 // needs for the moment of feedback.
 type AttemptResult struct {
-	Correct          bool            `json:"correct"`
-	Answer           json.RawMessage `json:"answer"`
-	Explanation      string          `json:"explanation"`
-	XPEarned         int             `json:"xp_earned"`
-	Zenkai           bool            `json:"zenkai"`
-	Streak           int             `json:"streak"`
-	SkillLevel       int             `json:"skill_level"`
-	LevelChanged     int             `json:"level_changed"` // -1/0/+1
-	PowerLevel       int64           `json:"power_level"`
-	PowerLevelBefore int64           `json:"power_level_before"`
-	Unlocks          []Unlock        `json:"unlocks"`
+	Correct           bool            `json:"correct"`
+	Answer            json.RawMessage `json:"answer"`
+	Explanation       string          `json:"explanation"`
+	XPEarned          int             `json:"xp_earned"`
+	Zenkai            bool            `json:"zenkai"`
+	Streak            int             `json:"streak"`
+	SkillLevel        int             `json:"skill_level"`
+	LevelChanged      int             `json:"level_changed"` // -1/0/+1
+	PowerLevel        int64           `json:"power_level"`
+	PowerLevelBefore  int64           `json:"power_level_before"`
+	Unlocks           []Unlock        `json:"unlocks"`
+	Event             *EventResult    `json:"event,omitempty"`
+	ScreenTimeMinutes int             `json:"screen_time_minutes"`
+}
+
+// EventResult is the API-facing shape of a fired Event, carried on
+// AttemptResult. XPBefore is the XP before the event multiplier was applied;
+// XPEarned on the enclosing AttemptResult is the final post-event value.
+type EventResult struct {
+	Slug       string `json:"slug"`
+	Name       string `json:"name"`
+	Message    string `json:"message"`
+	Multiplier string `json:"multiplier"` // "×2" — display string
+	XPBefore   int    `json:"xp_before"`
 }
 
 // SkillState is the per-skill adaptive/XP state; DB primary key is skill.
@@ -258,8 +272,18 @@ type AIBatch struct {
 
 // Settings is the single-row (id=1) app configuration.
 type Settings struct {
-	ID            int            `json:"id"`
-	DailyCount    int            `json:"daily_count"`
-	LevelOverride map[string]int `json:"level_override"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID                int            `json:"id"`
+	DailyCount        int            `json:"daily_count"`
+	LevelOverride     map[string]int `json:"level_override"`
+	MinutesPerCorrect int            `json:"minutes_per_correct"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+}
+
+// ScreenTimeReset is one row of screen-time redemption history: a snapshot
+// of the dial at the moment a parent reset it.
+type ScreenTimeReset struct {
+	ID              int64     `json:"id"`
+	ResetAt         time.Time `json:"reset_at"`
+	MinutesRedeemed int       `json:"minutes_redeemed"`
+	CorrectsCounted int       `json:"corrects_counted"`
 }

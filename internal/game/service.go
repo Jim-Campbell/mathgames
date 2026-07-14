@@ -26,10 +26,14 @@ const WishXP = 1000
 type Service struct {
 	store Store
 	log   *slog.Logger
+
+	// rollEvent is RollEvent by default; overridable in tests to force/deny
+	// an event without depending on the RNG.
+	rollEvent func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event
 }
 
 func NewService(store Store, log *slog.Logger) *Service {
-	return &Service{store: store, log: log}
+	return &Service{store: store, log: log, rollEvent: RollEvent}
 }
 
 // templateGenerators maps a template skill slug to its Generate function.
@@ -262,6 +266,23 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 	}
 	xp := Score(q.Difficulty, elapsedMS, streakAfter, correct, zenkai, daily)
 
+	// Random events only ever fire on a correct answer, applied after
+	// zenkai/daily are already baked into xp -- a daily kaio-ken answer is
+	// (base×speed×streak×2 daily)×2 event, stacking intentionally.
+	var ev *Event
+	var xpBeforeEvent int
+	if correct {
+		attemptsSinceLast, err := s.store.AttemptsSinceLastEvent(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("attempts since last event: %w", err)
+		}
+		ev = s.rollEvent(newRand(), attemptsSinceLast, elapsedMS, q.Difficulty)
+		if ev != nil {
+			xpBeforeEvent = xp
+			xp = ev.Apply(xp)
+		}
+	}
+
 	newState, levelChanged := Adapt(*state, correct)
 	newState.XP += int64(xp)
 	newState.Streak = streakAfter
@@ -285,6 +306,9 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		XPEarned:    xp,
 		StreakAfter: newState.Streak,
 		LevelAfter:  newState.Level,
+	}
+	if ev != nil {
+		attempt.Event = ev.Slug
 	}
 	if err := s.store.InsertAttempt(ctx, attempt); err != nil {
 		return nil, fmt.Errorf("insert attempt: %w", err)
@@ -324,18 +348,40 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 	}
 	unlocks := append(questUnlocks, thresholdUnlocks...)
 
+	var eventResult *EventResult
+	if ev != nil {
+		eventResult = &EventResult{
+			Slug:       ev.Slug,
+			Name:       ev.Name,
+			Message:    ev.Message,
+			Multiplier: ev.MultiplierString(),
+			XPBefore:   xpBeforeEvent,
+		}
+	}
+
+	var screenTimeMinutes int
+	if correct {
+		st, err := s.ScreenTime(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("screen time: %w", err)
+		}
+		screenTimeMinutes = st.MinutesEarned
+	}
+
 	return &AttemptResult{
-		Correct:          correct,
-		Answer:           q.Answer,
-		Explanation:      q.Explanation,
-		XPEarned:         xp,
-		Zenkai:           zenkai,
-		Streak:           newState.Streak,
-		SkillLevel:       newState.Level,
-		LevelChanged:     levelChanged,
-		PowerLevel:       powerAfter,
-		PowerLevelBefore: powerBefore,
-		Unlocks:          unlocks,
+		Correct:           correct,
+		Answer:            q.Answer,
+		Explanation:       q.Explanation,
+		XPEarned:          xp,
+		Zenkai:            zenkai,
+		Streak:            newState.Streak,
+		SkillLevel:        newState.Level,
+		LevelChanged:      levelChanged,
+		PowerLevel:        powerAfter,
+		PowerLevelBefore:  powerBefore,
+		Unlocks:           unlocks,
+		Event:             eventResult,
+		ScreenTimeMinutes: screenTimeMinutes,
 	}, nil
 }
 
@@ -370,6 +416,9 @@ func (s *Service) UpdateSettings(ctx context.Context, in *Settings) (*Settings, 
 	in.ID = 1
 	if in.DailyCount <= 0 {
 		return nil, fmt.Errorf("invalid: daily_count must be positive")
+	}
+	if in.MinutesPerCorrect <= 0 {
+		return nil, fmt.Errorf("invalid: minutes_per_correct must be positive")
 	}
 	if in.LevelOverride == nil {
 		in.LevelOverride = map[string]int{}

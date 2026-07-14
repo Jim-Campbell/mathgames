@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const skylarProfile = "Skylar is a gifted 8-year-old heading into 3rd grade, working through " +
+const skylerProfile = "Skyler is a gifted 8-year-old heading into 3rd grade, working through " +
 	"4th-grade math content. He is a voracious reader and loves Dragon Ball Z. Write for a " +
 	"bright, fast kid: clear wording, no busywork, playful DBZ flavor where it fits naturally " +
 	"(character names, training/battle framing) but never forced into every single item."
@@ -77,7 +77,7 @@ func questionsSystemPrompt(kind string, difficulty int, recentPrompts []string) 
 	}
 
 	var sb strings.Builder
-	sb.WriteString(skylarProfile)
+	sb.WriteString(skylerProfile)
 	sb.WriteString("\n\nYou are generating a batch of ")
 	sb.WriteString(kind)
 	sb.WriteString(fmt.Sprintf(" questions at difficulty level %d/10.\n\nRubric for this level: %s\n\n", difficulty, rubric))
@@ -140,7 +140,7 @@ Each story must end with a hook tying directly into that chapter's requirement (
 // title/story for one saga.
 func GenerateStory(ctx context.Context, msgr Messenger, model, saga string, chapters []ChapterInput) (systemPrompt, rawText string, items []StoryItem, err error) {
 	var sb strings.Builder
-	sb.WriteString(skylarProfile)
+	sb.WriteString(skylerProfile)
 	sb.WriteString(fmt.Sprintf("\n\nYou are writing the story text for the %q saga, %d chapters, of a Dragon Ball Z themed math training app. ", saga, len(chapters)))
 	sb.WriteString("This is a private, non-commercial fan project -- playful references to DBZ characters and lore are fine, but write original prose, not copied text.\n\n")
 	for _, c := range chapters {

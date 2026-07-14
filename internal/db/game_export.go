@@ -66,6 +66,12 @@ func (d *DB) ExportAll(ctx context.Context) (map[string]any, error) {
 	}
 	out["ai_batches"] = batches
 
+	resets, err := d.ListScreenTimeResets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out["screen_time_resets"] = resets
+
 	return out, nil
 }
 

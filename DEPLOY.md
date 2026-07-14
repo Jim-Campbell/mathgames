@@ -30,7 +30,7 @@ openssl rand -hex 24
 ```
 
 Save this value — it's `MATHGAMES_API_KEY` below, and the same value you
-paste into the PWA's first-run prompt on Skylar's iPad.
+paste into the PWA's first-run prompt on Skyler's iPad.
 
 ## 3. Anthropic API key (optional, for AI content generation)
 

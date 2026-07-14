@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-DBZ-themed math + logic games PWA for Skylar (gifted 8-year-old, 4th-grade
+DBZ-themed math + logic games PWA for Skyler (gifted 8-year-old, 4th-grade
 content, adaptive). Single user, iPad-first. Sibling app to
 `~/projects/food`, `~/projects/finance`, and `~/projects/journal` — same
 structure, patterns, and bearer-key auth.

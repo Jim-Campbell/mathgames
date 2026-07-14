@@ -1,6 +1,6 @@
 # DBZ Math Training
 
-A Dragon Ball Z–themed math + logic training PWA built for Skylar, a gifted
+A Dragon Ball Z–themed math + logic training PWA built for Skyler, a gifted
 8-year-old heading into 3rd grade, targeting 4th-grade content with
 difficulty that adapts on its own. Single user, iPad-first, installed as a
 home-screen app.
@@ -18,7 +18,7 @@ working conventions.
 ## Screenshots
 
 _TODO: add Home, Play, Collection, and Parents screenshots once the app is
-running on Skylar's iPad._
+running on Skyler's iPad._
 
 ## Tech stack
 
@@ -106,7 +106,7 @@ export download, and a **Danger Zone** with a factory reset.
 The reset (`POST /api/reset`, gated on `{"confirm":"RESET"}`) wipes all
 progress — power level, XP, levels, streaks, unlocks, daily history, quest
 progress — back to a fresh start, while keeping the question bank and saga
-stories. Use it before handing the app to Skylar for the first time (export
+stories. Use it before handing the app to Skyler for the first time (export
 a backup first — it can't be undone).
 
 During play, an optional **ki-charge speed timer** shows which speed bonus

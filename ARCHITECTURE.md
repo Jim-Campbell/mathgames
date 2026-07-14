@@ -1,6 +1,6 @@
 # Math Games App — Architecture
 
-Math + logic games app for **Skylar**, a gifted 8-year-old heading into 3rd
+Math + logic games app for **Skyler**, a gifted 8-year-old heading into 3rd
 grade, targeting **4th-grade content** with adaptive difficulty. Primary
 device: **iPad** (installed PWA). Single user. Sibling app to
 `~/projects/food`, `~/projects/finance`, and `~/projects/journal` — same
@@ -25,10 +25,31 @@ Design goals, in order:
 4. **Extensible** — new skills, fighters, sagas, and game modes bolt on
    without schema surgery.
 
-**Parked (rev 2+, do not build now):** the earned-screen-time ledger
-(minutes banked for other iPad games, in-app time limits). The schema below
-already records everything needed to compute earned minutes retroactively
-(attempts, sessions, timings), so nothing is lost by deferring.
+**Screen time.** Correct answers (any mode — training, quest, daily) fill a
+ki-gauge dial on Home: `minutes_per_correct` (a settings knob, default 3)
+per correct, capped at 60. The dial is **derived, never stored** — it's
+`(count of correct attempts since the last reset) × minutes_per_correct`,
+capped, computed from `attempts` rows on demand. A parent resets it from the
+parents view once the time is spent, snapshotting a `screen_time_resets`
+row. The app never locks anything; it's the trusted meter, and parents are
+the enforcers (iOS gives a PWA no way to control other apps). One flat rate,
+no bonuses or multipliers — richer earning rules are deliberately future
+work.
+
+| field | meaning |
+|---|---|
+| `minutes_earned` | current dial value, capped at 60 |
+| `minutes_cap` | 60 |
+| `corrects_since_reset` | corrects counted toward the current dial |
+| `minutes_per_correct` | the rate (settings knob) |
+| `full` | true once pinned at the cap |
+| `since_reset` | timestamp of the last reset, or null if never reset |
+
+```
+GET  /api/screentime        → the dial (fields above)
+POST /api/screentime/reset  → the created screen_time_resets row (400 if dial is 0)
+GET  /api/screentime/log    → resets, newest first
+```
 
 ## Tech stack
 
@@ -72,7 +93,7 @@ already records everything needed to compute earned minutes retroactively
   *outcomes*.
 - **Answers never leave the server before an attempt.** `GET /api/next`
   serves question payloads without answers; grading happens in
-  `POST /api/attempts`. (Skylar is exactly the kid who will find the network
+  `POST /api/attempts`. (Skyler is exactly the kid who will find the network
   tab one day.)
 - **Every attempt is stored raw**: full question snapshot reference, the
   answer given, correctness, elapsed ms, streak and level at that moment.
@@ -326,6 +347,43 @@ answered correctly in 9.2 s with streak reaching 7, no zenkai. Base
 up. The PWA celebrates threshold crossings; **9000** gets the big one
 ("IT'S OVER 9000!" full-screen moment).
 
+### Random events
+
+A code-defined registry (`internal/game/events.go`, `[]Event{...}`) of rare
+bonus moments on **correct** answers only. Each `Event` carries a
+slug/name/message, a relative `Weight` for picking among multiple
+registered events, an `XPNum`/`XPDen` integer multiplier
+(`Apply(xp) = xp*XPNum/XPDen + XPFlat`, multiply before divide, then add the
+flat bonus), and an optional `Eligible(elapsedMS, difficulty) bool`
+predicate (nil means always eligible) gating whether the event may fire for
+a given attempt.
+
+| slug | weight | effect | condition |
+| --- | --- | --- | --- |
+| `kaioken` | 4 | ×2 | none |
+| `capsule` | 3 | +100 XP flat | none |
+| `elder_kai` | 2 | ×2 | `elapsedMS > okMS(difficulty)` (slow) |
+| `ultra_instinct` | 2 | ×3 | `elapsedMS <= fastMS(difficulty)` (fast) |
+
+`RollEvent(rng, attemptsSinceLast, elapsedMS, difficulty)` fires with
+probability **1 in 25** (`eventChance = 25`) and never fires within **10
+attempts** (correct or wrong) of the last attempt that fired one
+(`eventCooldown = 10`, tracked via `attempts.event` and
+`Store.AttemptsSinceLastEvent`). Once it decides to fire, the weighted pick
+walks only the events whose `Eligible` predicate (if any) allows the
+attempt's `elapsedMS`/`difficulty` — ineligible events are excluded from
+the weighted pick entirely, so a fast answer can never roll `elder_kai` and
+a slow one can never roll `ultra_instinct`; if no event is eligible,
+nothing fires. The multiplier/flat bonus applies **last** — after speed,
+streak, zenkai, and the daily ×2 are already baked into `Score()`'s
+result — so a daily kaio-ken answer stacks intentionally:
+`(base×speed×streak×2 daily)×2 event`. The resulting XP then flows through
+skill state, the attempt row, daily progress, and power level with no
+further special-casing.
+
+`attempts.event` (migration 003) is a nullable TEXT column holding the slug
+of the event that fired on that attempt, if any.
+
 ## Adaptive difficulty (deterministic, `internal/game/adapt.go`)
 
 Per skill, a rolling window in `skill_state` (`window_total`,
@@ -471,7 +529,7 @@ no tab, no PIN; adults type the URL fragment. Same bearer key.
 Copy the HTTP client from `~/projects/food/internal/ai/client.go` (hand-rolled,
 no SDK; model from `AI_MODEL`, default `claude-sonnet-5`). Generation is a
 **single non-agentic call per batch** (no tool loop needed): a system prompt
-per kind (word_problems / logic / story) with the difficulty rubric, Skylar's
+per kind (word_problems / logic / story) with the difficulty rubric, Skyler's
 profile (8, gifted, voracious reader), the target skill/level, **the prompts
 of the last 50 questions at that skill/level** (to avoid repeats), and strict
 output instructions: a JSON array of `{payload, answer, explanation}` in the

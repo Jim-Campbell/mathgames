@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	mrand "math/rand"
 	"testing"
 )
 
@@ -395,5 +396,185 @@ func TestService_ResetProgress_WipesProgressKeepsBank(t *testing.T) {
 	}
 	if store.questions[qID].TimesServed != 0 {
 		t.Fatalf("times_served = %d, want 0", store.questions[qID].TimesServed)
+	}
+}
+
+// ---- random events ----
+
+func TestService_Attempt_ForcedEventDoublesXPAndRecords(t *testing.T) {
+	svc, store := testService()
+	ctx := context.Background()
+	kaioken := events[0]
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &kaioken }
+
+	sess := &Session{Mode: ModeTraining}
+	store.CreateSession(ctx, sess)
+	qID := insertNumericQuestion(t, store, "multiplication", 4, 42)
+	given, _ := json.Marshal(NumericAnswer{Value: 42})
+
+	res, err := svc.Attempt(ctx, sess.ID, qID, given, 9200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Event == nil {
+		t.Fatal("expected event in result")
+	}
+	if res.Event.Slug != "kaioken" {
+		t.Fatalf("event slug = %q, want kaioken", res.Event.Slug)
+	}
+	if res.Event.Name != kaioken.Name || res.Event.Message != kaioken.Message || res.Event.Multiplier != "×2" {
+		t.Fatalf("event fields = %+v, want name/message/multiplier from registry", res.Event)
+	}
+	if res.Event.XPBefore <= 0 || res.XPEarned != res.Event.XPBefore*2 {
+		t.Fatalf("xp_before=%d xp_earned=%d, want xp_earned = 2*xp_before", res.Event.XPBefore, res.XPEarned)
+	}
+
+	if len(store.attempts) != 1 || store.attempts[0].Event != "kaioken" {
+		t.Fatalf("attempt row event = %q, want kaioken", store.attempts[0].Event)
+	}
+	state, _ := store.GetSkillState(ctx, "multiplication")
+	if state.XP != int64(res.XPEarned) {
+		t.Fatalf("persisted skill XP = %d, want %d (doubled xp)", state.XP, res.XPEarned)
+	}
+	if res.PowerLevel != res.PowerLevelBefore+int64(res.XPEarned) {
+		t.Fatalf("power level should reflect doubled XP: before=%d earned=%d after=%d",
+			res.PowerLevelBefore, res.XPEarned, res.PowerLevel)
+	}
+}
+
+func TestService_Attempt_ForcedCapsuleAddsFlatXPAndRecords(t *testing.T) {
+	svc, store := testService()
+	ctx := context.Background()
+	capsule := findEvent(t, "capsule")
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return capsule }
+
+	sess := &Session{Mode: ModeTraining}
+	store.CreateSession(ctx, sess)
+	qID := insertNumericQuestion(t, store, "multiplication", 4, 42)
+	given, _ := json.Marshal(NumericAnswer{Value: 42})
+
+	res, err := svc.Attempt(ctx, sess.ID, qID, given, 9200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Event == nil || res.Event.Slug != "capsule" {
+		t.Fatalf("expected capsule event, got %+v", res.Event)
+	}
+	if res.XPEarned != res.Event.XPBefore+100 {
+		t.Fatalf("xp_before=%d xp_earned=%d, want xp_earned = xp_before + 100", res.Event.XPBefore, res.XPEarned)
+	}
+	if len(store.attempts) != 1 || store.attempts[0].Event != "capsule" {
+		t.Fatalf("attempt row event = %q, want capsule", store.attempts[0].Event)
+	}
+}
+
+func TestService_Attempt_ForcedUltraInstinctTriplesXPAndRecords(t *testing.T) {
+	svc, store := testService()
+	ctx := context.Background()
+	ui := findEvent(t, "ultra_instinct")
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return ui }
+
+	sess := &Session{Mode: ModeTraining}
+	store.CreateSession(ctx, sess)
+	qID := insertNumericQuestion(t, store, "multiplication", 4, 42)
+	given, _ := json.Marshal(NumericAnswer{Value: 42})
+
+	res, err := svc.Attempt(ctx, sess.ID, qID, given, 9200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Event == nil || res.Event.Slug != "ultra_instinct" {
+		t.Fatalf("expected ultra_instinct event, got %+v", res.Event)
+	}
+	if res.Event.XPBefore <= 0 || res.XPEarned != res.Event.XPBefore*3 {
+		t.Fatalf("xp_before=%d xp_earned=%d, want xp_earned = 3*xp_before", res.Event.XPBefore, res.XPEarned)
+	}
+	if len(store.attempts) != 1 || store.attempts[0].Event != "ultra_instinct" {
+		t.Fatalf("attempt row event = %q, want ultra_instinct", store.attempts[0].Event)
+	}
+}
+
+func TestService_Attempt_NoEventLeavesFieldsEmpty(t *testing.T) {
+	svc, store := testService()
+	ctx := context.Background()
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return nil }
+
+	sess := &Session{Mode: ModeTraining}
+	store.CreateSession(ctx, sess)
+	qID := insertNumericQuestion(t, store, "multiplication", 4, 42)
+	given, _ := json.Marshal(NumericAnswer{Value: 42})
+
+	res, err := svc.Attempt(ctx, sess.ID, qID, given, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Event != nil {
+		t.Fatalf("expected no event, got %+v", res.Event)
+	}
+	if len(store.attempts) != 1 || store.attempts[0].Event != "" {
+		t.Fatalf("attempt row event = %q, want empty", store.attempts[0].Event)
+	}
+}
+
+func TestService_Attempt_WrongAnswerNeverFiresEvent(t *testing.T) {
+	svc, store := testService()
+	ctx := context.Background()
+	kaioken := events[0]
+	// Even a roll stub that would always fire must never be consulted for a
+	// wrong answer (RollEvent is only called when correct).
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &kaioken }
+
+	sess := &Session{Mode: ModeTraining}
+	store.CreateSession(ctx, sess)
+	qID := insertNumericQuestion(t, store, "division", 2, 5)
+	given, _ := json.Marshal(NumericAnswer{Value: 999}) // wrong
+
+	res, err := svc.Attempt(ctx, sess.ID, qID, given, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Correct {
+		t.Fatal("expected incorrect")
+	}
+	if res.Event != nil {
+		t.Fatalf("wrong answer should never fire an event, got %+v", res.Event)
+	}
+	if res.XPEarned != 1 {
+		t.Fatalf("wrong answer XP = %d, want 1 (unaffected by event stub)", res.XPEarned)
+	}
+}
+
+func TestService_Attempt_CooldownHoldsWithinTenAttempts(t *testing.T) {
+	svc, store := testService()
+	ctx := context.Background()
+	kaioken := events[0]
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &kaioken }
+
+	sess := &Session{Mode: ModeTraining}
+	store.CreateSession(ctx, sess)
+
+	firstQ := insertNumericQuestion(t, store, "multiplication", 4, 42)
+	given, _ := json.Marshal(NumericAnswer{Value: 42})
+	first, err := svc.Attempt(ctx, sess.ID, firstQ, given, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Event == nil {
+		t.Fatal("expected first forced attempt to fire an event")
+	}
+
+	// Real cooldown enforcement lives in RollEvent/AttemptsSinceLastEvent, so
+	// swap in the real roller for the remaining attempts within the
+	// cooldown window and assert none of them fire, no matter the RNG.
+	svc.rollEvent = RollEvent
+	for i := 0; i < eventCooldown-1; i++ {
+		qID := insertNumericQuestion(t, store, "multiplication", 4, 42)
+		res, err := svc.Attempt(ctx, sess.ID, qID, given, 1000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Event != nil {
+			t.Fatalf("attempt %d within cooldown window fired an event: %+v", i, res.Event)
+		}
 	}
 }

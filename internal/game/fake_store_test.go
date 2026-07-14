@@ -25,6 +25,8 @@ type fakeStore struct {
 	settings    Settings
 	batches     []AIBatch
 	nextBatchID int64
+	stResets    []ScreenTimeReset
+	nextSTRID   int64
 }
 
 func newFakeStore() *fakeStore {
@@ -35,7 +37,7 @@ func newFakeStore() *fakeStore {
 		unlocks:     map[string]*Unlock{},
 		chapters:    map[int64]*QuestChapter{},
 		daily:       map[string]*DailyResult{},
-		settings:    Settings{ID: 1, DailyCount: 5, LevelOverride: map[string]int{}},
+		settings:    Settings{ID: 1, DailyCount: 5, LevelOverride: map[string]int{}, MinutesPerCorrect: 3},
 	}
 }
 
@@ -132,6 +134,22 @@ func (f *fakeStore) ListAttempts(ctx context.Context, since time.Time) ([]Attemp
 		}
 	}
 	return out, nil
+}
+
+func (f *fakeStore) AttemptsSinceLastEvent(ctx context.Context) (int, error) {
+	var lastEventID int64
+	for _, a := range f.attempts {
+		if a.Event != "" && a.ID > lastEventID {
+			lastEventID = a.ID
+		}
+	}
+	count := 0
+	for _, a := range f.attempts {
+		if a.ID > lastEventID {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func (f *fakeStore) GetSkillState(ctx context.Context, skill string) (*SkillState, error) {
@@ -336,13 +354,14 @@ func (f *fakeStore) UpdateSettings(ctx context.Context, s *Settings) error {
 
 func (f *fakeStore) ExportAll(ctx context.Context) (map[string]any, error) {
 	return map[string]any{
-		"questions":   f.questions,
-		"attempts":    f.attempts,
-		"skill_state": f.skillStates,
-		"unlocks":     f.unlocks,
-		"chapters":    f.chapters,
-		"daily":       f.daily,
-		"settings":    f.settings,
+		"questions":          f.questions,
+		"attempts":           f.attempts,
+		"skill_state":        f.skillStates,
+		"unlocks":            f.unlocks,
+		"chapters":           f.chapters,
+		"daily":              f.daily,
+		"settings":           f.settings,
+		"screen_time_resets": f.stResets,
 	}, nil
 }
 
@@ -390,6 +409,48 @@ func (f *fakeStore) ResetProgress(ctx context.Context) error {
 	}
 	f.settings.LevelOverride = map[string]int{}
 	return nil
+}
+
+func (f *fakeStore) CountCorrectsSince(ctx context.Context, since *time.Time) (int, error) {
+	count := 0
+	for _, a := range f.attempts {
+		if !a.Correct {
+			continue
+		}
+		if since != nil && a.CreatedAt.Before(*since) {
+			continue
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (f *fakeStore) InsertScreenTimeReset(ctx context.Context, r *ScreenTimeReset) error {
+	f.nextSTRID++
+	r.ID = f.nextSTRID
+	r.ResetAt = time.Now()
+	f.stResets = append(f.stResets, *r)
+	return nil
+}
+
+func (f *fakeStore) LastScreenTimeReset(ctx context.Context) (*ScreenTimeReset, error) {
+	if len(f.stResets) == 0 {
+		return nil, nil
+	}
+	latest := f.stResets[0]
+	for _, r := range f.stResets[1:] {
+		if r.ResetAt.After(latest.ResetAt) {
+			latest = r
+		}
+	}
+	return &latest, nil
+}
+
+func (f *fakeStore) ListScreenTimeResets(ctx context.Context) ([]ScreenTimeReset, error) {
+	out := make([]ScreenTimeReset, len(f.stResets))
+	copy(out, f.stResets)
+	sort.Slice(out, func(i, j int) bool { return out[i].ResetAt.After(out[j].ResetAt) })
+	return out, nil
 }
 
 var _ Store = (*fakeStore)(nil)
