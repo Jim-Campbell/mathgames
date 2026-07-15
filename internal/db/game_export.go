@@ -72,6 +72,18 @@ func (d *DB) ExportAll(ctx context.Context) (map[string]any, error) {
 	}
 	out["screen_time_resets"] = resets
 
+	clips, err := d.ListClips(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out["clips"] = clips
+
+	clipPlays, err := d.ListClipPlays(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	out["clip_plays"] = clipPlays
+
 	return out, nil
 }
 

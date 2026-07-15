@@ -19,6 +19,9 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.pathname.startsWith('/api')) return;
+  // Cross-origin (R2 video clips) always goes straight to network -- never
+  // the shell cache, which would otherwise bloat on opaque video responses.
+  if (url.origin !== location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {

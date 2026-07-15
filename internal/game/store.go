@@ -110,6 +110,31 @@ type Store interface {
 	// ListScreenTimeResets returns every reset, newest first.
 	ListScreenTimeResets(ctx context.Context) ([]ScreenTimeReset, error)
 
+	// ---- clips ----
+
+	ListClips(ctx context.Context) ([]Clip, error)
+	GetClip(ctx context.Context, id int64) (*Clip, error)
+	InsertClip(ctx context.Context, c *Clip) error
+	// UpdateClipConditions updates everything but the file (title, enabled,
+	// on_correct, on_wrong, weight) — PUT /api/clips/{id} never re-uploads.
+	UpdateClipConditions(ctx context.Context, id int64, title string, enabled, onCorrect, onWrong bool, weight int) error
+	// DeleteClip removes the clips row (and cascades clip_plays). Deleting
+	// the R2 object is the caller's job, before this, so a failure can't
+	// orphan the object.
+	DeleteClip(ctx context.Context, id int64) error
+
+	// CountClipPlaysInSession counts clip_plays joined to attempts in
+	// sessionID, for the per-session cap.
+	CountClipPlaysInSession(ctx context.Context, sessionID int64) (int, error)
+	// LastPlayedClipID returns the clip_id of the most recent clip_plays
+	// row, or 0 if none have ever played (immediate-repeat avoidance).
+	LastPlayedClipID(ctx context.Context) (int64, error)
+	// InsertClipPlay records a play and bumps clips.play_count, atomically.
+	InsertClipPlay(ctx context.Context, clipID, attemptID int64, trigger string) error
+	// ListClipPlays returns the most recent plays, newest first, joined with
+	// the clip's title, for the manage page's recent-plays log.
+	ListClipPlays(ctx context.Context, limit int) ([]ClipPlayLog, error)
+
 	// ---- export ----
 
 	// ExportAll dumps every table, keyed by table name, for GET /api/export.

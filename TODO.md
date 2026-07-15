@@ -189,8 +189,36 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
   the existing key. Big enough to warrant a real design pass — parked here
   so it doesn't sneak in half-done.
 
+## Video clips — future triggers
+
+V1 (build-prompts/feature-video-clips.md) plays a clip on a random roll on
+any answer, with per-clip correct/wrong tags. The condition model is built
+to carry more triggers Jim mentioned adding later — wire these into the same
+clip-eligibility model rather than new systems:
+
+- **Milestone triggers**: play a specific clip on a level-up, a power-level
+  threshold, a fighter unlock, a daily-challenge completion, or a saga
+  chapter beaten. Needs a `trigger`/condition field on `clips` richer than
+  the current two booleans (e.g. a tag set), plus firing hooks at those
+  moments (the unlock/level-up sites already exist in the service).
+- **Streak triggers**: a clip at a streak milestone (10 in a row → "Uncle
+  Jim is proud").
+- **Scheduled/first-of-day**: a clip on the first correct answer of the day.
+- **Bearer-authed streaming proxy** (hardening): serve clips through
+  `/api/clips/{id}/video` with range-request support instead of a public R2
+  URL, if clip privacy ever matters more than it does for a personal family
+  app. Non-trivial (HTTP range handling).
+
 ## Done
 
+- **Video clips v1** — prompt written 2026-07-14
+  (build-prompts/feature-video-clips.md). Jim uploads personal clips
+  (Cloudflare R2, reusing the sibling apps' credentials) via a hidden
+  `#/clips` manage route; each clip is tagged for correct/wrong triggers
+  with a weight + enabled flag. A random per-answer roll (default 1 in 40,
+  per-session cap 2, both tunable) plays a clip in a tap-to-play in-app
+  viewer — the roll is decoupled from the XP event engine and fires on
+  wrong answers too. `clip_plays` records every play.
 - **Screen-time dial v1** — prompt written 2026-07-14
   (build-prompts/feature-screen-time.md). Correct answers fill a ki-gauge
   on Home at `minutes_per_correct` (default 3, settings knob), capped at

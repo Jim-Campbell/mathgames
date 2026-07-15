@@ -264,6 +264,20 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .ov-event-elder_kai .ov-event-name { color: #c9a8ff; text-shadow: 0 0 26px rgba(138,79,255,.85); animation: none; }
 .ov-tap-hint { color: var(--muted); font-size: .78rem; margin-top: 16px; text-transform: uppercase; letter-spacing: .06em; }
 
+/* ---- video clip overlay ---- */
+.clip-card { max-width: 480px; width: 100%; }
+.clip-play-btn {
+  width: 96px; height: 96px; border-radius: 50%; border: none; margin: 14px auto;
+  background: linear-gradient(135deg, var(--gold), var(--orange-deep)); color: #1a0e00;
+  font-size: 2.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 24px rgba(255,140,26,.5);
+}
+.clip-skip { margin-top: 10px; display: block; width: 100%; }
+.clip-card.playing video {
+  width: 100%; max-height: 70vh; border-radius: 12px; background: #000; display: block;
+}
+.clip-done { display: block; width: 100%; margin-top: 14px; }
+
 /* ---- collection ---- */
 .db-tray { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
 .ball { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--muted); }
@@ -328,6 +342,21 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .settings-form { display: flex; flex-direction: column; }
 .version { text-align: center; color: var(--muted); font-size: .72rem; margin-top: 24px; padding-bottom: 20px; }
 
+/* ---- clips manage ---- */
+label.f.chk { display: flex; align-items: center; gap: 8px; }
+label.f.chk input { width: auto; }
+.clip-upload-form { display: flex; flex-direction: column; }
+.clip-upload-form video { max-width: 100%; border-radius: 10px; margin-top: 8px; }
+.clip-list { display: flex; flex-direction: column; gap: 10px; }
+.clip-row { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.clip-row-main b { font-size: .88rem; }
+.clip-row-meta { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+.clip-row-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: .74rem; color: var(--muted); }
+.clip-row-controls label { display: flex; align-items: center; gap: 4px; }
+.clip-row-controls input[type=checkbox] { width: auto; }
+.clip-row-controls input[type=number] { width: 52px; padding: 6px; }
+.btn.sm.danger { background: rgba(255,82,82,.14); color: var(--red); border: 1px solid var(--red); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -388,6 +417,7 @@ const S = {
   offline: false, aiEnabled: true,
   taunt: TAUNTS[Math.floor(Math.random() * TAUNTS.length)],
   screenTime: null, screenTimeFullSeen: false, screenTimeLog: null,
+  clips: null, clipPlays: null, videoEnabled: false,
 };
 
 // ---------- api ----------
@@ -551,6 +581,7 @@ async function onRoute() {
     else if (S.view === 'parents') await loadParents();
     else if (S.view === 'qreview') await loadQuestionReview();
     else if (S.view === 'stlog') await loadScreenTimeLog();
+    else if (S.view === 'clips') await loadClipsManage();
     render();
   } catch (e) { showError(e); }
 }
@@ -583,7 +614,7 @@ function applyScreenTime(st) {
 function render() {
   renderTabBar();
   const m = $('#main');
-  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents, qreview: renderQuestionReview, stlog: renderScreenTimeLog }[S.view] || renderHome)(m);
+  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents, qreview: renderQuestionReview, stlog: renderScreenTimeLog, clips: renderClipsManage }[S.view] || renderHome)(m);
   renderOverlay();
 }
 function renderTabBar() {
@@ -849,6 +880,10 @@ async function continueAfterFeedback() {
       if (justCompleted) overlays.push({ type: 'questcomplete', chapter: updated });
     } catch (e) {}
   }
+  // Clip is always the finale: pushed last so the XP moment (event/levelup/
+  // unlock) plays first on a correct answer, and it's the sole overlay on a
+  // wrong one (gentle encouragement).
+  if (result.clip) overlays.push({ type: 'clip', clip: result.clip, playing: false });
   S.overlayQueue = overlays;
   S.locked = false;
   advanceOverlay();
@@ -1068,8 +1103,30 @@ function renderOverlay() {
   } else if (o.type === 'wish') {
     html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>🐉 Shenron Grants Your Wish!</h2>' + fighterSVG({ slug: o.unlock.ref, rarity: o.unlock.rarity, unlocked: true }, 140) +
       '<div class="ov-name">' + esc(o.unlock.name) + '</div><button class="btn primary" onclick="S.currentOverlay=null; render()">Amazing!</button></div>';
+  } else if (o.type === 'clip') {
+    html = o.playing
+      ? '<div class="ov-card clip-card playing">' +
+        '<video id="clipVideo" controls playsinline src="' + esc(o.clip.url) + '"></video>' +
+        '<button class="btn primary clip-done" onclick="advanceOverlay()">✕ Back to training</button></div>'
+      : '<div class="ov-card clip-card"><div class="ov-flash"></div>' +
+        '<h2>🎬 A message from Uncle Jim!</h2>' +
+        '<button class="clip-play-btn" onclick="playClip()">▶</button>' +
+        '<div class="ov-tap-hint">Tap to play</div>' +
+        '<button class="btn ghost sm clip-skip" onclick="advanceOverlay()">Back to training</button></div>';
   }
   root.innerHTML = html;
+}
+// playClip swaps the tap-to-play card for the <video> and calls .play()
+// synchronously from this tap handler -- iOS only allows audio on video
+// playback when play() is invoked directly from a user gesture, so no
+// awaits can happen between the tap and this call.
+function playClip() {
+  const o = S.currentOverlay;
+  if (!o || o.type !== 'clip') return;
+  o.playing = true;
+  render();
+  const v = document.getElementById('clipVideo');
+  if (v) v.play().catch(() => {});
 }
 
 // ---------- COLLECTION ----------
@@ -1158,6 +1215,8 @@ function renderParents(m) {
     '<div class="hint">Every AI-written word problem and logic puzzle currently in the bank. If one is confusing, wrong, or just not good, retire it — retired questions are never served to Skyler again but stay listed here in case you want to bring one back later.</div>' +
     '<div class="qreview-summary">' + qreviewSummaryText(S.questions) + '</div>' +
     '<button class="btn" onclick="go(\'qreview\')">Review Questions →</button>' +
+    '<h3>Video Clips</h3><div class="hint">Personal messages from Jim/family that Skyler unlocks on a rare random roll after answering.</div>' +
+    '<button class="btn" onclick="go(\'clips\')">Manage Video Clips →</button>' +
     '<h3>Settings</h3>' + settingsFormHTML(st) +
     '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
     '<h3 class="danger-h">Danger Zone</h3><div class="danger-zone">' +
@@ -1196,8 +1255,10 @@ async function saveMinutesPerCorrect() {
   const minutes_per_correct = parseInt($('#setMinutesPerCorrect').value, 10) || 1;
   const daily_count = (S.settingsData && S.settingsData.daily_count) || 5;
   const level_override = (S.settingsData && S.settingsData.level_override) || {};
+  const clip_chance = (S.settingsData && S.settingsData.clip_chance) || 40;
+  const clip_session_cap = (S.settingsData && S.settingsData.clip_session_cap) != null ? S.settingsData.clip_session_cap : 2;
   try {
-    S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct } });
+    S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct, clip_chance, clip_session_cap } });
     S.screenTime = await api('/screentime');
     toast('Screen time rate saved');
     render();
@@ -1328,10 +1389,12 @@ async function saveSettings() {
   // settings PUT stays valid.
   const daily_count = (S.settingsData && S.settingsData.daily_count) || 5;
   const minutes_per_correct = (S.settingsData && S.settingsData.minutes_per_correct) || 3;
+  const clip_chance = (S.settingsData && S.settingsData.clip_chance) || 40;
+  const clip_session_cap = (S.settingsData && S.settingsData.clip_session_cap) != null ? S.settingsData.clip_session_cap : 2;
   const level_override = {};
   for (const sk of SKILLS) { const v = $('#ov_' + sk.slug).value; if (v) level_override[sk.slug] = parseInt(v, 10); }
   try {
-    S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct } });
+    S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct, clip_chance, clip_session_cap } });
     toast('Settings saved');
     render();
   } catch (e) { showError(e); }
@@ -1350,6 +1413,159 @@ async function downloadExport() {
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   } catch (e) { showError(e); }
+}
+
+// ---------- CLIPS MANAGE (#/clips, hidden — mirrors #/parents) ----------
+async function loadClipsManage() {
+  const [clips, plays, health, settings] = await Promise.all([
+    api('/clips'), api('/clips/plays?limit=50'),
+    fetch('/api/health').then(r => r.json()).catch(() => ({ video: false })),
+    api('/settings'),
+  ]);
+  S.clips = clips || []; S.clipPlays = plays || []; S.videoEnabled = !!health.video; S.settingsData = settings;
+}
+function renderClipsManage(m) {
+  if (!S.clips || !S.settingsData) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
+  m.innerHTML = '<div class="parents-wrap">' +
+    '<button class="btn ghost sm" onclick="go(\'parents\')">← Back</button>' +
+    '<h2>🎬 Video Clips</h2>' +
+    '<div class="hint">Personal video clips from Jim/family that Skyler unlocks on a rare random roll right after answering — correct or wrong. Not shown anywhere else in the app.</div>' +
+    '<h3>Upload</h3>' + clipUploadFormHTML() +
+    '<h3>Clips</h3>' + clipListHTML(S.clips) +
+    '<h3>Settings</h3>' + clipSettingsFormHTML(S.settingsData) +
+    '<h3>Recent Plays</h3>' + clipPlaysLogHTML(S.clipPlays) +
+    '</div>';
+}
+function clipUploadFormHTML() {
+  if (!S.videoEnabled) return '<div class="ai-off-notice">⚠️ Video storage isn\'t configured (set the R2_* env vars on Render).</div>';
+  return '<div class="clip-upload-form">' +
+    '<input type="file" id="clipFile" accept="video/*" onchange="onClipFileChosen()"/>' +
+    '<video id="clipPreview" style="display:none" controls playsinline></video>' +
+    '<label class="f">Title</label><input type="text" id="clipTitle" placeholder="e.g. Great job on your times tables!"/>' +
+    '<label class="f chk"><input type="checkbox" id="clipOnCorrect" checked/> Play on correct answers</label>' +
+    '<label class="f chk"><input type="checkbox" id="clipOnWrong"/> Play on wrong answers</label>' +
+    '<label class="f">Weight (relative pick chance among eligible clips)</label><input type="number" id="clipWeight" min="1" value="1"/>' +
+    '<label class="f chk"><input type="checkbox" id="clipEnabled" checked/> Enabled</label>' +
+    '<button class="btn primary" onclick="uploadClip()" style="margin-top:12px">Upload Clip</button>' +
+    '<div id="clipUploadProgress" class="hint" style="display:none;margin-top:8px"></div>' +
+    '</div>';
+}
+let clipDurationMs = null;
+function onClipFileChosen() {
+  const input = $('#clipFile'), file = input.files[0], preview = $('#clipPreview');
+  clipDurationMs = null;
+  if (!file) { preview.style.display = 'none'; preview.removeAttribute('src'); return; }
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  preview.onloadedmetadata = () => { clipDurationMs = Math.round(preview.duration * 1000); };
+}
+function uploadClip() {
+  const input = $('#clipFile'), file = input.files[0];
+  const title = ($('#clipTitle').value || '').trim();
+  if (!file) { toast('Choose a video file first'); return; }
+  if (!title) { toast('Title is required'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('title', title);
+  fd.append('on_correct', $('#clipOnCorrect').checked ? 'true' : 'false');
+  fd.append('on_wrong', $('#clipOnWrong').checked ? 'true' : 'false');
+  fd.append('weight', $('#clipWeight').value || '1');
+  fd.append('enabled', $('#clipEnabled').checked ? 'true' : 'false');
+  if (clipDurationMs != null) fd.append('duration_ms', String(clipDurationMs));
+
+  const bar = $('#clipUploadProgress');
+  bar.style.display = 'block'; bar.textContent = 'Uploading… 0%';
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/clips');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + apiKey());
+  xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.textContent = 'Uploading… ' + Math.round((e.loaded / e.total) * 100) + '%'; };
+  xhr.onload = async () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      toast('Clip uploaded');
+      input.value = ''; $('#clipTitle').value = ''; $('#clipPreview').style.display = 'none';
+      clipDurationMs = null;
+      await loadClipsManage(); render();
+    } else {
+      let msg = 'Upload failed';
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch (e) {}
+      toast(msg);
+      bar.style.display = 'none';
+    }
+  };
+  xhr.onerror = () => { toast('Upload failed'); bar.style.display = 'none'; };
+  xhr.send(fd);
+}
+function fmtBytes(n) {
+  if (!n) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0, v = n;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return v.toFixed(v < 10 && i > 0 ? 1 : 0) + ' ' + units[i];
+}
+function clipListHTML(clips) {
+  if (!clips.length) return '<div class="empty">No clips yet</div>';
+  return '<div class="clip-list">' + clips.map(c =>
+    '<div class="clip-row"><div class="clip-row-main"><b>' + esc(c.title) + '</b>' +
+    '<div class="clip-row-meta">' + (c.duration_ms ? Math.round(c.duration_ms / 1000) + 's · ' : '') + fmtBytes(c.size_bytes) + ' · ' + c.play_count + ' play' + (c.play_count === 1 ? '' : 's') + '</div></div>' +
+    '<div class="clip-row-controls">' +
+    '<label><input type="checkbox" ' + (c.enabled ? 'checked' : '') + ' onchange="updateClipField(' + c.id + ',\'enabled\',this.checked)"/> On</label>' +
+    '<label><input type="checkbox" ' + (c.on_correct ? 'checked' : '') + ' onchange="updateClipField(' + c.id + ',\'on_correct\',this.checked)"/> ✓</label>' +
+    '<label><input type="checkbox" ' + (c.on_wrong ? 'checked' : '') + ' onchange="updateClipField(' + c.id + ',\'on_wrong\',this.checked)"/> ✗</label>' +
+    '<input type="number" min="1" value="' + c.weight + '" onchange="updateClipField(' + c.id + ',\'weight\',parseInt(this.value,10)||1)"/>' +
+    '<button class="btn sm" onclick="previewClip(\'' + esc(c.url) + '\')">▶</button>' +
+    '<button class="btn sm danger" onclick="confirmDeleteClip(' + c.id + ',\'' + esc(c.title).replace(/'/g, "\\'") + '\')">✕</button>' +
+    '</div></div>'
+  ).join('') + '</div>';
+}
+async function updateClipField(id, field, value) {
+  const c = S.clips.find(x => x.id === id);
+  if (!c) return;
+  const body = { title: c.title, enabled: c.enabled, on_correct: c.on_correct, on_wrong: c.on_wrong, weight: c.weight };
+  body[field] = value;
+  try {
+    const updated = await api('/clips/' + id, { method: 'PUT', body });
+    Object.assign(c, updated);
+    render();
+  } catch (e) { showError(e); render(); }
+}
+function previewClip(url) {
+  openDialog('<h2>Preview</h2><video src="' + esc(url) + '" controls playsinline style="width:100%;border-radius:10px"></video><div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Close</button></div>');
+}
+function confirmDeleteClip(id, title) {
+  openDialog('<h2>Delete clip?</h2><p class="muted">"' + esc(title) + '" will be removed permanently, including its video file.</p>' +
+    '<div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Cancel</button><button class="btn danger" onclick="closeDialog(); runDeleteClip(' + id + ')">Delete</button></div>');
+}
+async function runDeleteClip(id) {
+  try { await api('/clips/' + id, { method: 'DELETE' }); await loadClipsManage(); toast('Clip deleted'); render(); }
+  catch (e) { showError(e); }
+}
+function clipSettingsFormHTML(st) {
+  return '<div class="settings-form">' +
+    '<label class="f">Clip chance (1 in N answers)</label>' +
+    '<input type="number" min="1" id="setClipChance" value="' + st.clip_chance + '"/>' +
+    '<label class="f">Max clips per session</label>' +
+    '<input type="number" min="0" id="setClipSessionCap" value="' + st.clip_session_cap + '"/>' +
+    '<button class="btn primary" onclick="saveClipSettings()" style="margin-top:12px">Save Clip Settings</button></div>';
+}
+async function saveClipSettings() {
+  const clip_chance = parseInt($('#setClipChance').value, 10) || 40;
+  const capVal = parseInt($('#setClipSessionCap').value, 10);
+  const clip_session_cap = isNaN(capVal) ? 2 : capVal;
+  const daily_count = (S.settingsData && S.settingsData.daily_count) || 5;
+  const minutes_per_correct = (S.settingsData && S.settingsData.minutes_per_correct) || 3;
+  const level_override = (S.settingsData && S.settingsData.level_override) || {};
+  try {
+    S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct, clip_chance, clip_session_cap } });
+    toast('Clip settings saved');
+    render();
+  } catch (e) { showError(e); }
+}
+function clipPlaysLogHTML(plays) {
+  if (!plays || !plays.length) return '<div class="empty">No clips played yet</div>';
+  return '<div class="scrollx"><table class="ptab"><thead><tr><th>Clip</th><th>Trigger</th><th>Played At</th></tr></thead><tbody>' +
+    plays.map(p => '<tr><td>' + esc(p.clip_title) + '</td><td>' + (p.trigger === 'correct' ? '✓ correct' : '✗ wrong') + '</td><td>' + new Date(p.played_at).toLocaleString() + '</td></tr>').join('') +
+    '</tbody></table></div>';
 }
 
 // ---------- boot ----------

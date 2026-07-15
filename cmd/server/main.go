@@ -14,6 +14,7 @@ import (
 	"github.com/jimgcampbell/mathgames/internal/api"
 	"github.com/jimgcampbell/mathgames/internal/db"
 	"github.com/jimgcampbell/mathgames/internal/game"
+	"github.com/jimgcampbell/mathgames/internal/storage"
 )
 
 func main() {
@@ -37,6 +38,11 @@ func run(log *slog.Logger) error {
 		// Optional — used only to report configured/not-configured in this phase.
 		AnthropicKey string
 		AIModel      string
+		R2AccountID  string
+		R2AccessKey  string
+		R2SecretKey  string
+		R2Bucket     string
+		R2PublicURL  string
 	}{
 		DatabaseURL:  requireEnv("DATABASE_URL"),
 		APIKey:       requireEnv("MATHGAMES_API_KEY"),
@@ -45,6 +51,11 @@ func run(log *slog.Logger) error {
 		PWADir:       getEnv("PWA_DIR", "pwa"),
 		AnthropicKey: os.Getenv("ANTHROPIC_API_KEY"),
 		AIModel:      getEnv("AI_MODEL", ai.DefaultModel),
+		R2AccountID:  os.Getenv("R2_ACCOUNT_ID"),
+		R2AccessKey:  os.Getenv("R2_ACCESS_KEY_ID"),
+		R2SecretKey:  os.Getenv("R2_SECRET_ACCESS_KEY"),
+		R2Bucket:     os.Getenv("R2_BUCKET"),
+		R2PublicURL:  os.Getenv("R2_PUBLIC_URL"),
 	}
 
 	aiEnabled := cfg.AnthropicKey != ""
@@ -52,6 +63,14 @@ func run(log *slog.Logger) error {
 		log.Info("AI configured", "model", cfg.AIModel)
 	} else {
 		log.Info("AI not configured (set ANTHROPIC_API_KEY to enable)")
+	}
+
+	videoEnabled := cfg.R2AccountID != "" && cfg.R2AccessKey != "" &&
+		cfg.R2SecretKey != "" && cfg.R2Bucket != "" && cfg.R2PublicURL != ""
+	if videoEnabled {
+		log.Info("R2 video storage configured")
+	} else {
+		log.Info("R2 video storage not configured (set R2_* vars to enable video clips)")
 	}
 
 	ctx := context.Background()
@@ -83,11 +102,20 @@ func run(log *slog.Logger) error {
 	}
 	gameHandler := api.NewGameHandler(svc, aiGen, log)
 
+	// clipStore is left nil (not a typed nil) when R2 isn't configured, so
+	// ClipHandler's h.store == nil check works.
+	var clipStore api.ClipStore
+	if videoEnabled {
+		clipStore = storage.NewR2Client(cfg.R2AccountID, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket, cfg.R2PublicURL)
+	}
+	clipHandler := api.NewClipHandler(svc, clipStore, log)
+
 	r := api.NewRouter(api.Config{
 		APIKey: cfg.APIKey,
 		AI:     aiEnabled,
+		Video:  videoEnabled,
 		PWADir: cfg.PWADir,
-	}, gameHandler, log)
+	}, gameHandler, clipHandler, log)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

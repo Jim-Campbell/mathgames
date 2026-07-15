@@ -27,6 +27,19 @@ type fakeStore struct {
 	nextBatchID int64
 	stResets    []ScreenTimeReset
 	nextSTRID   int64
+	clips       map[int64]*Clip
+	nextClipID  int64
+	clipPlays   []clipPlayRow
+	nextCPID    int64
+}
+
+// clipPlayRow mirrors a clip_plays DB row for the fake store.
+type clipPlayRow struct {
+	ID        int64
+	ClipID    int64
+	AttemptID int64
+	Trigger   string
+	PlayedAt  time.Time
 }
 
 func newFakeStore() *fakeStore {
@@ -37,7 +50,8 @@ func newFakeStore() *fakeStore {
 		unlocks:     map[string]*Unlock{},
 		chapters:    map[int64]*QuestChapter{},
 		daily:       map[string]*DailyResult{},
-		settings:    Settings{ID: 1, DailyCount: 5, LevelOverride: map[string]int{}, MinutesPerCorrect: 3},
+		settings:    Settings{ID: 1, DailyCount: 5, LevelOverride: map[string]int{}, MinutesPerCorrect: 3, ClipChance: 40, ClipSessionCap: 2},
+		clips:       map[int64]*Clip{},
 	}
 }
 
@@ -450,6 +464,109 @@ func (f *fakeStore) ListScreenTimeResets(ctx context.Context) ([]ScreenTimeReset
 	out := make([]ScreenTimeReset, len(f.stResets))
 	copy(out, f.stResets)
 	sort.Slice(out, func(i, j int) bool { return out[i].ResetAt.After(out[j].ResetAt) })
+	return out, nil
+}
+
+// ---- clips ----
+
+func (f *fakeStore) ListClips(ctx context.Context) ([]Clip, error) {
+	var out []Clip
+	for _, c := range f.clips {
+		out = append(out, *c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+func (f *fakeStore) GetClip(ctx context.Context, id int64) (*Clip, error) {
+	c, ok := f.clips[id]
+	if !ok {
+		return nil, nil
+	}
+	cp := *c
+	return &cp, nil
+}
+
+func (f *fakeStore) InsertClip(ctx context.Context, c *Clip) error {
+	f.nextClipID++
+	c.ID = f.nextClipID
+	c.CreatedAt = time.Now()
+	cp := *c
+	f.clips[c.ID] = &cp
+	return nil
+}
+
+func (f *fakeStore) UpdateClipConditions(ctx context.Context, id int64, title string, enabled, onCorrect, onWrong bool, weight int) error {
+	c, ok := f.clips[id]
+	if !ok {
+		return fmt.Errorf("not found: clip")
+	}
+	c.Title = title
+	c.Enabled = enabled
+	c.OnCorrect = onCorrect
+	c.OnWrong = onWrong
+	c.Weight = weight
+	return nil
+}
+
+func (f *fakeStore) DeleteClip(ctx context.Context, id int64) error {
+	delete(f.clips, id)
+	return nil
+}
+
+func (f *fakeStore) CountClipPlaysInSession(ctx context.Context, sessionID int64) (int, error) {
+	count := 0
+	for _, cp := range f.clipPlays {
+		for _, a := range f.attempts {
+			if a.ID == cp.AttemptID && a.SessionID == sessionID {
+				count++
+				break
+			}
+		}
+	}
+	return count, nil
+}
+
+func (f *fakeStore) LastPlayedClipID(ctx context.Context) (int64, error) {
+	if len(f.clipPlays) == 0 {
+		return 0, nil
+	}
+	latest := f.clipPlays[0]
+	for _, cp := range f.clipPlays[1:] {
+		if cp.ID > latest.ID {
+			latest = cp
+		}
+	}
+	return latest.ClipID, nil
+}
+
+func (f *fakeStore) InsertClipPlay(ctx context.Context, clipID, attemptID int64, trigger string) error {
+	f.nextCPID++
+	f.clipPlays = append(f.clipPlays, clipPlayRow{
+		ID: f.nextCPID, ClipID: clipID, AttemptID: attemptID, Trigger: trigger, PlayedAt: time.Now(),
+	})
+	if c, ok := f.clips[clipID]; ok {
+		c.PlayCount++
+	}
+	return nil
+}
+
+func (f *fakeStore) ListClipPlays(ctx context.Context, limit int) ([]ClipPlayLog, error) {
+	out := make([]ClipPlayLog, 0, len(f.clipPlays))
+	for _, cp := range f.clipPlays {
+		title := ""
+		if c, ok := f.clips[cp.ClipID]; ok {
+			title = c.Title
+		}
+		out = append(out, ClipPlayLog{
+			ID: cp.ID, ClipID: cp.ClipID, ClipTitle: title,
+			AttemptID: &cp.AttemptID, Trigger: cp.Trigger, PlayedAt: cp.PlayedAt,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].PlayedAt.After(out[j].PlayedAt) })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
 	return out, nil
 }
 

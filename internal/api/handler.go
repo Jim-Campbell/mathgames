@@ -15,10 +15,11 @@ import (
 type Config struct {
 	APIKey string
 	AI     bool
+	Video  bool
 	PWADir string
 }
 
-func NewRouter(cfg Config, game *GameHandler, log *slog.Logger) *chi.Mux {
+func NewRouter(cfg Config, game *GameHandler, clips *ClipHandler, log *slog.Logger) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.RequestID)
@@ -27,12 +28,13 @@ func NewRouter(cfg Config, game *GameHandler, log *slog.Logger) *chi.Mux {
 
 	r.Route("/api", func(r chi.Router) {
 		// Health is unauthenticated.
-		r.Get("/health", healthHandler(cfg.AI))
+		r.Get("/health", healthHandler(cfg.AI, cfg.Video))
 
 		// All other /api routes require auth.
 		r.Group(func(r chi.Router) {
 			r.Use(AuthMiddleware(cfg.APIKey))
 			game.Routes(r)
+			clips.Routes(r)
 			// Catch-all: returns 404 only after a valid bearer token is
 			// presented, for any route not registered above.
 			r.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
@@ -45,10 +47,10 @@ func NewRouter(cfg Config, game *GameHandler, log *slog.Logger) *chi.Mux {
 	return r
 }
 
-func healthHandler(ai bool) http.HandlerFunc {
+func healthHandler(ai, video bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"ok":true,"ai":%t}`, ai)
+		fmt.Fprintf(w, `{"ok":true,"ai":%t,"video":%t}`, ai, video)
 	}
 }
 

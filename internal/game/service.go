@@ -30,10 +30,15 @@ type Service struct {
 	// rollEvent is RollEvent by default; overridable in tests to force/deny
 	// an event without depending on the RNG.
 	rollEvent func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event
+
+	// clipRoll is ClipRoll by default; overridable in tests to force/deny a
+	// clip without depending on the RNG. Separate from rollEvent: it runs on
+	// every answer, correct or wrong.
+	clipRoll func(rng *mrand.Rand, correct bool, eligible []Clip, lastPlayedID int64, playsThisSession, sessionCap, chance int) *Clip
 }
 
 func NewService(store Store, log *slog.Logger) *Service {
-	return &Service{store: store, log: log, rollEvent: RollEvent}
+	return &Service{store: store, log: log, rollEvent: RollEvent, clipRoll: ClipRoll}
 }
 
 // templateGenerators maps a template skill slug to its Generate function.
@@ -314,6 +319,11 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		return nil, fmt.Errorf("insert attempt: %w", err)
 	}
 
+	clipResult, err := s.rollClip(ctx, sessionID, attempt.ID, correct)
+	if err != nil {
+		return nil, err
+	}
+
 	var rewardXP int
 	var questUnlocks []Unlock
 	if session.Mode == ModeQuest && correct {
@@ -382,7 +392,49 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		Unlocks:           unlocks,
 		Event:             eventResult,
 		ScreenTimeMinutes: screenTimeMinutes,
+		Clip:              clipResult,
 	}, nil
+}
+
+// rollClip is the video-clip trigger: a separate roll from rollEvent, run on
+// every answer (correct or wrong), independent of the XP-event branch. On a
+// pick, it records the play (bumping clips.play_count) and returns the
+// API-facing ClipPlay to attach to the result.
+func (s *Service) rollClip(ctx context.Context, sessionID, attemptID int64, correct bool) (*ClipPlay, error) {
+	settings, err := s.store.GetSettings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get settings for clip roll: %w", err)
+	}
+	clips, err := s.store.ListClips(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list clips: %w", err)
+	}
+	if len(clips) == 0 {
+		return nil, nil
+	}
+	lastPlayedID, err := s.store.LastPlayedClipID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("last played clip id: %w", err)
+	}
+	playsThisSession, err := s.store.CountClipPlaysInSession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("count clip plays in session: %w", err)
+	}
+
+	clip := s.clipRoll(newRand(), correct, clips, lastPlayedID, playsThisSession, settings.ClipSessionCap, settings.ClipChance)
+	if clip == nil {
+		return nil, nil
+	}
+
+	trigger := "wrong"
+	if correct {
+		trigger = "correct"
+	}
+	if err := s.store.InsertClipPlay(ctx, clip.ID, attemptID, trigger); err != nil {
+		return nil, fmt.Errorf("insert clip play: %w", err)
+	}
+
+	return &ClipPlay{ID: clip.ID, Title: clip.Title, URL: clip.URL, ContentType: clip.ContentType}, nil
 }
 
 // ---- sessions ----
@@ -420,6 +472,12 @@ func (s *Service) UpdateSettings(ctx context.Context, in *Settings) (*Settings, 
 	if in.MinutesPerCorrect <= 0 {
 		return nil, fmt.Errorf("invalid: minutes_per_correct must be positive")
 	}
+	if in.ClipChance <= 0 {
+		return nil, fmt.Errorf("invalid: clip_chance must be positive")
+	}
+	if in.ClipSessionCap < 0 {
+		return nil, fmt.Errorf("invalid: clip_session_cap must be non-negative")
+	}
 	if in.LevelOverride == nil {
 		in.LevelOverride = map[string]int{}
 	}
@@ -452,6 +510,65 @@ func (s *Service) ListQuestions(ctx context.Context, skill, source string, retir
 // GameHandler.fail's prefix match still routes it to 404.
 func (s *Service) SetQuestionRetired(ctx context.Context, id int64, retired bool) error {
 	return s.store.SetQuestionRetired(ctx, id, retired)
+}
+
+// ---- clips (parent manage view) ----
+
+func (s *Service) ListClips(ctx context.Context) ([]Clip, error) {
+	clips, err := s.store.ListClips(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list clips: %w", err)
+	}
+	return clips, nil
+}
+
+func (s *Service) GetClip(ctx context.Context, id int64) (*Clip, error) {
+	c, err := s.store.GetClip(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get clip: %w", err)
+	}
+	return c, nil
+}
+
+// CreateClip records a clip row after its bytes have already been uploaded
+// to R2 (the handler does the upload; this just persists the metadata).
+func (s *Service) CreateClip(ctx context.Context, c *Clip) error {
+	if c.Title == "" {
+		return fmt.Errorf("invalid: title is required")
+	}
+	if c.Weight <= 0 {
+		c.Weight = 1
+	}
+	if err := s.store.InsertClip(ctx, c); err != nil {
+		return fmt.Errorf("insert clip: %w", err)
+	}
+	return nil
+}
+
+// UpdateClip changes a clip's conditions only (title, enabled, on_correct,
+// on_wrong, weight) -- never the file. Delete + re-upload replaces bytes.
+func (s *Service) UpdateClip(ctx context.Context, id int64, title string, enabled, onCorrect, onWrong bool, weight int) error {
+	if title == "" {
+		return fmt.Errorf("invalid: title is required")
+	}
+	if weight <= 0 {
+		return fmt.Errorf("invalid: weight must be positive")
+	}
+	return s.store.UpdateClipConditions(ctx, id, title, enabled, onCorrect, onWrong, weight)
+}
+
+// DeleteClip removes only the DB row; the caller (handler) deletes the R2
+// object first so a failure there can't orphan the object.
+func (s *Service) DeleteClip(ctx context.Context, id int64) error {
+	return s.store.DeleteClip(ctx, id)
+}
+
+func (s *Service) ListClipPlays(ctx context.Context, limit int) ([]ClipPlayLog, error) {
+	plays, err := s.store.ListClipPlays(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list clip plays: %w", err)
+	}
+	return plays, nil
 }
 
 // ---- admin ----

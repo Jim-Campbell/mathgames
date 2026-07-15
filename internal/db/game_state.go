@@ -433,8 +433,8 @@ func (d *DB) ListDailyResults(ctx context.Context, sinceDay string) ([]game.Dail
 func (d *DB) GetSettings(ctx context.Context) (*game.Settings, error) {
 	var s game.Settings
 	var overrideJSON []byte
-	err := d.pool.QueryRow(ctx, `SELECT id, daily_count, level_override, minutes_per_correct, updated_at FROM settings WHERE id = 1`).
-		Scan(&s.ID, &s.DailyCount, &overrideJSON, &s.MinutesPerCorrect, &s.UpdatedAt)
+	err := d.pool.QueryRow(ctx, `SELECT id, daily_count, level_override, minutes_per_correct, clip_chance, clip_session_cap, updated_at FROM settings WHERE id = 1`).
+		Scan(&s.ID, &s.DailyCount, &overrideJSON, &s.MinutesPerCorrect, &s.ClipChance, &s.ClipSessionCap, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get settings: %w", err)
 	}
@@ -454,8 +454,9 @@ func (d *DB) UpdateSettings(ctx context.Context, s *game.Settings) error {
 		return fmt.Errorf("marshal level_override: %w", err)
 	}
 	_, err = d.pool.Exec(ctx, `
-		UPDATE settings SET daily_count = $1, level_override = $2, minutes_per_correct = $3, updated_at = NOW() WHERE id = 1`,
-		s.DailyCount, overrideJSON, s.MinutesPerCorrect)
+		UPDATE settings SET daily_count = $1, level_override = $2, minutes_per_correct = $3,
+			clip_chance = $4, clip_session_cap = $5, updated_at = NOW() WHERE id = 1`,
+		s.DailyCount, overrideJSON, s.MinutesPerCorrect, s.ClipChance, s.ClipSessionCap)
 	if err != nil {
 		return fmt.Errorf("update settings: %w", err)
 	}

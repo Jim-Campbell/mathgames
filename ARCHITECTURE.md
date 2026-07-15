@@ -61,7 +61,8 @@ GET  /api/screentime/log    → resets, newest first
   `ANTHROPIC_API_KEY` — used only for **batch content generation** (word
   problems, logic puzzles, saga story text), never in the answer loop. The
   app runs fully without the key; it just can't mint new AI content.
-- No other external services. No R2, no photos.
+- **Cloudflare R2** for video-clip storage (see "Video clips" below) — the
+  only other external service, off until its env vars are configured.
 
 ## Repository structure
 
@@ -483,7 +484,7 @@ exactly like the siblings; `GET /api/health` unauthenticated. JSON in/out,
 snake_case.
 
 ```
-GET    /api/health                → {"ok":true,"ai":<key configured>}
+GET    /api/health                → {"ok":true,"ai":<key configured>,"video":<R2 configured>}
 
 POST   /api/sessions              {mode}                        → Session
 POST   /api/sessions/{id}/end                                   → 204
@@ -517,12 +518,97 @@ POST   /api/questions/{id}/retire                               → 204
 POST   /api/questions/{id}/unretire                             → 204
 
 GET    /api/settings              → settings row
-PUT    /api/settings              {daily_count, level_override}
+PUT    /api/settings              {daily_count, level_override, minutes_per_correct,
+                                    clip_chance, clip_session_cap}
 GET    /api/export                → full-DB JSON download
+
+GET    /api/clips                 → [Clip] metadata for the manage page
+POST   /api/clips                 multipart {file, title, on_correct, on_wrong,
+                                    weight, enabled, duration_ms}     → Clip (503 if R2 off)
+PUT    /api/clips/{id}            {title, enabled, on_correct, on_wrong, weight} → Clip
+DELETE /api/clips/{id}            → 204 (deletes the R2 object, then the row)
+GET    /api/clips/plays?limit=    → recent clip_plays w/ clip title + trigger
 ```
 
 The parent scorecard lives at the **hidden route `#/parents`** in the PWA —
 no tab, no PIN; adults type the URL fragment. Same bearer key.
+
+## Video clips (`internal/storage`, `internal/game/clips.go`)
+
+Personal video clips recorded by Jim/family that Skyler unlocks inside the
+app. v1 has exactly one trigger: **a random roll on any answer, correct or
+wrong**, with a hidden `#/clips` manage route to upload clips and set the
+conditions under which each plays. The per-clip condition model (below) is
+built to carry more triggers later (streak milestones, daily completion,
+quest rewards) without schema surgery — only the random-roll trigger is
+wired up now.
+
+**Storage.** Clip bytes live in **Cloudflare R2** (`internal/storage.R2Client`,
+copied from `~/projects/food`'s `internal/storage/r2.go`, same `R2_*` env
+var names so credentials are reusable across the sibling apps); the DB holds
+metadata + the object key + public URL. Video features are **off until all
+five `R2_*` vars are set** — `/api/health` reports `"video":false` and
+`POST /api/clips` 503s, exactly like food's photo gating. Clips serve
+**directly from their R2 public URL** (unguessable key) — anyone with the
+URL can view it; a bearer-authed streaming proxy (range requests) is future
+hardening if that ever matters, not built now.
+
+**Schema (migration 005):**
+
+```sql
+CREATE TABLE clips (
+    id, title, r2_key, url, content_type, size_bytes, duration_ms (nullable),
+    enabled, on_correct, on_wrong, weight (>0), play_count, created_at
+);
+CREATE TABLE clip_plays (
+    id, clip_id (FK), attempt_id (FK, nullable), trigger ('correct'|'wrong'), played_at
+);
+-- settings gains: clip_chance (1-in-N per answer, default 40),
+--                 clip_session_cap (max clips per session, default 2)
+```
+
+`clip_plays` is the raw-data record (per the raw-attempt-data invariant) and
+powers both immediate-repeat avoidance and the per-session cap count (joined
+to `attempts.session_id` via `attempt_id` — no `session_id` column needed on
+`clip_plays` itself). Both tables are included in `/api/export`.
+
+**Trigger model.** Each clip carries `on_correct`/`on_wrong` flags, an
+`enabled` flag, and a pick `weight`. `ClipRoll` (`internal/game/clips.go`,
+pure/deterministic, rng injected like `RollEvent`) decides whether an answer
+triggers a clip and which one:
+
+1. `playsThisSession >= sessionCap` → nil.
+2. Filter to `enabled` clips whose `on_correct`/`on_wrong` matches this
+   answer's correctness; no matches → nil.
+3. Roll `1 in clip_chance` (else nil).
+4. Among the matching set, drop the last-played clip **if** more than one
+   remains (avoid an immediate repeat — a lone eligible clip is allowed to
+   repeat).
+5. Weighted pick by `weight` (same walk idiom as `weightedPickSkill` /
+   `RollEvent`).
+
+This is a **separate roll from the XP event engine** (`internal/game/events.go`):
+it runs on every answer, correct or wrong, independent of `RollEvent`
+(which only fires on correct answers). `Service.Attempt()` calls it after
+the attempt row is inserted (so `attempt.ID` exists), independent of the
+XP-event branch; a pick inserts a `clip_plays` row, bumps `clips.play_count`,
+and attaches a `ClipPlay{id, title, url, content_type}` to `AttemptResult`.
+
+**Viewer.** When `result.clip` is present, the PWA pushes a
+`{type:'clip', clip}` overlay **last** in the queue — after any XP-event
+overlay, so on a correct answer the XP moment plays first and the clip is
+the finale; on a wrong answer it's the sole overlay (gentle encouragement).
+The overlay is a tap-to-play card ("🎬 A message from Uncle Jim! ▶"); tapping
+swaps in a `<video controls playsinline>` and calls `.play()` synchronously
+from the tap handler (iOS requires the gesture-to-play() call to have no
+`await` in between, or sound is blocked). A ✕ dismisses and continues the
+session — no auto-advance timer for this overlay, unlike the others.
+
+**Manage route `#/clips`** — hidden, no tab, mirrors `#/parents` (adults
+type the URL fragment, or follow the link from the Parents page). Upload
+(file + title + trigger checkboxes + weight + enabled, with a local preview
+and client-read `duration_ms`), clip list with inline condition toggles and
+delete, the two settings knobs, and a recent-plays log.
 
 ## AI content generation (`internal/ai`)
 
@@ -614,7 +700,10 @@ Screens:
 Required: `DATABASE_URL`, `MATHGAMES_API_KEY`. Optional: `PORT` (default
 **8083** — journal 8080, finance 8081, food 8082), `ANTHROPIC_API_KEY`
 (without it: `/api/generate` → 503, health reports `ai:false`, everything
-else works), `AI_MODEL` (default `claude-sonnet-5`).
+else works), `AI_MODEL` (default `claude-sonnet-5`), and the video-clips R2
+vars — `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+`R2_BUCKET`, `R2_PUBLIC_URL` (off until **all five** are set: health reports
+`video:false`, `POST /api/clips` → 503, everything else works).
 
 ## Verification
 

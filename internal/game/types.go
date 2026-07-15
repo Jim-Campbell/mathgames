@@ -149,6 +149,45 @@ type AttemptResult struct {
 	Unlocks           []Unlock        `json:"unlocks"`
 	Event             *EventResult    `json:"event,omitempty"`
 	ScreenTimeMinutes int             `json:"screen_time_minutes"`
+	Clip              *ClipPlay       `json:"clip,omitempty"`
+}
+
+// ClipPlay is the API-facing shape of a clip chosen by ClipRoll, carried on
+// AttemptResult.
+type ClipPlay struct {
+	ID          int64  `json:"id"`
+	Title       string `json:"title"`
+	URL         string `json:"url"`
+	ContentType string `json:"content_type"`
+}
+
+// Clip is a manage-page video clip row (migration 005). Video features are
+// off until all five R2_* env vars are set (see internal/storage.R2Client).
+type Clip struct {
+	ID          int64     `json:"id"`
+	Title       string    `json:"title"`
+	R2Key       string    `json:"r2_key"`
+	URL         string    `json:"url"`
+	ContentType string    `json:"content_type"`
+	SizeBytes   int64     `json:"size_bytes"`
+	DurationMS  *int      `json:"duration_ms,omitempty"`
+	Enabled     bool      `json:"enabled"`
+	OnCorrect   bool      `json:"on_correct"`
+	OnWrong     bool      `json:"on_wrong"`
+	Weight      int       `json:"weight"`
+	PlayCount   int       `json:"play_count"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// ClipPlayLog is one clip_plays row for the manage page's recent-plays list
+// (GET /api/clips/plays), joined with the clip's title for display.
+type ClipPlayLog struct {
+	ID        int64     `json:"id"`
+	ClipID    int64     `json:"clip_id"`
+	ClipTitle string    `json:"clip_title"`
+	AttemptID *int64    `json:"attempt_id,omitempty"`
+	Trigger   string    `json:"trigger"`
+	PlayedAt  time.Time `json:"played_at"`
 }
 
 // EventResult is the API-facing shape of a fired Event, carried on
@@ -276,6 +315,8 @@ type Settings struct {
 	DailyCount        int            `json:"daily_count"`
 	LevelOverride     map[string]int `json:"level_override"`
 	MinutesPerCorrect int            `json:"minutes_per_correct"`
+	ClipChance        int            `json:"clip_chance"`      // 1-in-N chance per answer
+	ClipSessionCap    int            `json:"clip_session_cap"` // max clips per session
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
