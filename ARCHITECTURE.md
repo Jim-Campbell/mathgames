@@ -31,10 +31,17 @@ per correct, capped at 60. The dial is **derived, never stored** — it's
 `(count of correct attempts since the last reset) × minutes_per_correct`,
 capped, computed from `attempts` rows on demand. A parent resets it from the
 parents view once the time is spent, snapshotting a `screen_time_resets`
-row. The app never locks anything; it's the trusted meter, and parents are
-the enforcers (iOS gives a PWA no way to control other apps). One flat rate,
-no bonuses or multipliers — richer earning rules are deliberately future
-work.
+row (`reason='manual'`). The dial also **auto-resets to 0 on the first use of
+the app each device-local day** — the first `GET /api/screentime?day=` (or
+`POST /api/attempts` that includes `day`) of a new day inserts a
+`reason='daily'` reset row snapshotting whatever was on the dial, same
+mechanism, no parent involved. `screen_time_resets.day` (the device-local
+`YYYY-MM-DD` the reset applies to) and `.reason` (`manual`|`daily`) drive
+rollover detection; a partial unique index on `day` where `reason='daily'`
+keeps it idempotent per day. The app never locks anything; it's the trusted
+meter, and parents are the enforcers (iOS gives a PWA no way to control
+other apps). One flat rate, no bonuses or multipliers — richer earning
+rules are deliberately future work.
 
 | field | meaning |
 |---|---|
@@ -46,9 +53,9 @@ work.
 | `since_reset` | timestamp of the last reset, or null if never reset |
 
 ```
-GET  /api/screentime        → the dial (fields above)
-POST /api/screentime/reset  → the created screen_time_resets row (400 if dial is 0)
-GET  /api/screentime/log    → resets, newest first
+GET  /api/screentime?day=        → the dial (fields above), rolling the day over first if needed
+POST /api/screentime/reset {day} → the created screen_time_resets row, reason='manual' (400 if dial is 0)
+GET  /api/screentime/log         → resets, newest first, each with reason + day
 ```
 
 ## Tech stack
@@ -490,8 +497,11 @@ POST   /api/sessions              {mode}                        → Session
 POST   /api/sessions/{id}/end                                   → 204
 
 GET    /api/next?skill=&count=&session_id=                      → {questions:[...], bank_low}
-POST   /api/attempts              {session_id, question_id, given, elapsed_ms}
+POST   /api/attempts              {session_id, question_id, given, elapsed_ms, day?}
                                                                 → attempt result (above)
+                                       (day is optional, device-local YYYY-MM-DD; when
+                                       present, rolls the screen-time dial's daily
+                                       reset over first if needed)
 
 GET    /api/daily?day=YYYY-MM-DD  → {day, questions|results, answered, correct,
                                      completed, streak, calendar:[...last 30 days...]}

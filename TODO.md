@@ -211,6 +211,10 @@ clip-eligibility model rather than new systems:
 
 ## Done
 
+- **Screen-time daily auto-reset** — prompt written 2026-07-14
+  (build-prompts/feature-screentime-daily-reset.md). Dial auto-resets to 0
+  on first app use each local day (a `reason='daily'` reset row); manual
+  parent reset unchanged. Device supplies the local day; idempotent per day.
 - **Video clips v1** — prompt written 2026-07-14
   (build-prompts/feature-video-clips.md). Jim uploads personal clips
   (Cloudflare R2, reusing the sibling apps' credentials) via a hidden

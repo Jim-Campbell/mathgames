@@ -452,6 +452,13 @@ function askKey() {
 function showError(e) { if (e.message === 'offline' || e.message === 'unauthorized') return; toast('Error: ' + e.message); }
 
 // ---------- utils ----------
+// localDayStr returns the device-local YYYY-MM-DD (not UTC) -- the screen-
+// time dial's daily auto-reset rolls over on this date, so it must match
+// the day the kid actually sees on the iPad, not the server's UTC day.
+function localDayStr(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 const $ = s => document.querySelector(s);
 function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function fmtInt(n) { return Number(n).toLocaleString('en-US'); }
@@ -587,7 +594,7 @@ async function onRoute() {
 }
 
 async function loadHome() {
-  const [profile, collection, screenTime] = await Promise.all([api('/profile'), api('/collection'), api('/screentime')]);
+  const [profile, collection, screenTime] = await Promise.all([api('/profile'), api('/collection'), api('/screentime?day=' + localDayStr())]);
   S.profile = profile; S.collection = collection;
   applyScreenTime(screenTime);
   S.taunt = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
@@ -597,7 +604,7 @@ async function loadQuests() { S.quests = await api('/quests'); }
 async function loadParents() {
   const [summary, settings, questions, health, screenTime] = await Promise.all([
     api('/parents/summary?days=30'), api('/settings'), api('/questions?source=ai'),
-    fetch('/api/health').then(r => r.json()).catch(() => ({ ai: true })), api('/screentime'),
+    fetch('/api/health').then(r => r.json()).catch(() => ({ ai: true })), api('/screentime?day=' + localDayStr()),
   ]);
   S.parents = summary; S.settingsData = settings; S.questions = questions || []; S.aiEnabled = !!health.ai;
   applyScreenTime(screenTime);
@@ -817,7 +824,7 @@ async function submitAnswer() {
   S.locked = true;
   const elapsed = Date.now() - S.currentStart;
   try {
-    const result = await api('/attempts', { method: 'POST', body: { session_id: S.session.id, question_id: q.id, given, elapsed_ms: elapsed } });
+    const result = await api('/attempts', { method: 'POST', body: { session_id: S.session.id, question_id: q.id, given, elapsed_ms: elapsed, day: localDayStr() } });
     afterAttempt(result, elapsed);
   } catch (e) { S.locked = false; showError(e); render(); }
 }
@@ -1259,7 +1266,7 @@ async function saveMinutesPerCorrect() {
   const clip_session_cap = (S.settingsData && S.settingsData.clip_session_cap) != null ? S.settingsData.clip_session_cap : 2;
   try {
     S.settingsData = await api('/settings', { method: 'PUT', body: { daily_count, level_override, minutes_per_correct, clip_chance, clip_session_cap } });
-    S.screenTime = await api('/screentime');
+    S.screenTime = await api('/screentime?day=' + localDayStr());
     toast('Screen time rate saved');
     render();
   } catch (e) { showError(e); }
@@ -1273,8 +1280,8 @@ function confirmResetScreenTime() {
 }
 async function runResetScreenTime() {
   try {
-    await api('/screentime/reset', { method: 'POST' });
-    S.screenTime = await api('/screentime');
+    await api('/screentime/reset', { method: 'POST', body: { day: localDayStr() } });
+    S.screenTime = await api('/screentime?day=' + localDayStr());
     S.screenTimeFullSeen = false;
     toast('Screen time dial reset');
     render();
@@ -1283,14 +1290,18 @@ async function runResetScreenTime() {
 function renderScreenTimeLog(m) {
   const log = S.screenTimeLog, st = S.screenTime;
   if (!log || !st) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
-  const currentRow = '<tr class="st-current-row"><td>Current</td><td>' + st.minutes_earned + ' min</td><td>' + st.corrects_since_reset + '</td></tr>';
-  const rows = log.map(r => '<tr><td>' + new Date(r.reset_at).toLocaleString() + '</td><td>' + r.minutes_redeemed + ' min</td><td>' + r.corrects_counted + '</td></tr>').join('');
+  const currentRow = '<tr class="st-current-row"><td>Current</td><td>Current</td><td>' + st.minutes_earned + ' min</td><td>' + st.corrects_since_reset + '</td></tr>';
+  // Skip the one-time bootstrap marker (a daily row with nothing redeemed,
+  // written the first time this feature ever ran) -- it's bookkeeping, not
+  // a real reset a parent would want to see.
+  const visible = log.filter(r => !(r.reason === 'daily' && r.minutes_redeemed === 0 && r.corrects_counted === 0));
+  const rows = visible.map(r => '<tr><td>' + new Date(r.reset_at).toLocaleString() + '</td><td>' + (r.reason === 'daily' ? 'Daily reset' : 'Redeemed by parent') + '</td><td>' + r.minutes_redeemed + ' min</td><td>' + r.corrects_counted + '</td></tr>').join('');
   m.innerHTML = '<div class="parents-wrap">' +
     '<button class="btn ghost sm" onclick="go(\'parents\')">← Back</button>' +
     '<h2>Screen Time Log</h2>' +
-    '<div class="hint">The in-progress period is highlighted at the top; every row below is a past parent reset, newest first.</div>' +
-    '<div class="scrollx"><table class="ptab"><thead><tr><th>Reset At</th><th>Minutes</th><th>Corrects</th></tr></thead><tbody>' +
-    currentRow + (rows || '<tr><td colspan="3" class="muted">No resets yet</td></tr>') +
+    '<div class="hint">The in-progress period is highlighted at the top. "Daily reset" rows rolled over automatically at the start of a new day (nothing redeemed); "Redeemed by parent" rows are manual resets.</div>' +
+    '<div class="scrollx"><table class="ptab"><thead><tr><th>Reset At</th><th>Reason</th><th>Minutes</th><th>Corrects</th></tr></thead><tbody>' +
+    currentRow + (rows || '<tr><td colspan="4" class="muted">No resets yet</td></tr>') +
     '</tbody></table></div></div>';
 }
 function bankHTML(bank) {

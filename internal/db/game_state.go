@@ -480,11 +480,15 @@ func (d *DB) CountCorrectsSince(ctx context.Context, since *time.Time) (int, err
 }
 
 func (d *DB) InsertScreenTimeReset(ctx context.Context, r *game.ScreenTimeReset) error {
-	err := d.pool.QueryRow(ctx, `
-		INSERT INTO screen_time_resets (minutes_redeemed, corrects_counted)
-		VALUES ($1,$2)
+	day, err := parseOptionalDay(r.Day)
+	if err != nil {
+		return err
+	}
+	err = d.pool.QueryRow(ctx, `
+		INSERT INTO screen_time_resets (minutes_redeemed, corrects_counted, reason, day)
+		VALUES ($1,$2,$3,$4)
 		RETURNING id, reset_at`,
-		r.MinutesRedeemed, r.CorrectsCounted).
+		r.MinutesRedeemed, r.CorrectsCounted, r.Reason, day).
 		Scan(&r.ID, &r.ResetAt)
 	if err != nil {
 		return fmt.Errorf("insert screen time reset: %w", err)
@@ -492,24 +496,37 @@ func (d *DB) InsertScreenTimeReset(ctx context.Context, r *game.ScreenTimeReset)
 	return nil
 }
 
+// InsertDailyResetIfNew inserts a reason='daily' row for localDay unless one
+// already exists, relying on the screen_time_daily_uniq partial unique
+// index + ON CONFLICT DO NOTHING to stay race-safe under concurrent calls.
+func (d *DB) InsertDailyResetIfNew(ctx context.Context, localDay string, resetAt time.Time, minutesRedeemed, correctsCounted int) (bool, error) {
+	ct, err := d.pool.Exec(ctx, `
+		INSERT INTO screen_time_resets (reset_at, minutes_redeemed, corrects_counted, reason, day)
+		VALUES ($1,$2,$3,'daily',$4::date)
+		ON CONFLICT (day) WHERE reason = 'daily' DO NOTHING`,
+		resetAt, minutesRedeemed, correctsCounted, localDay)
+	if err != nil {
+		return false, fmt.Errorf("insert daily reset: %w", err)
+	}
+	return ct.RowsAffected() > 0, nil
+}
+
 func (d *DB) LastScreenTimeReset(ctx context.Context) (*game.ScreenTimeReset, error) {
-	var r game.ScreenTimeReset
-	err := d.pool.QueryRow(ctx, `
-		SELECT id, reset_at, minutes_redeemed, corrects_counted
-		FROM screen_time_resets ORDER BY reset_at DESC LIMIT 1`).
-		Scan(&r.ID, &r.ResetAt, &r.MinutesRedeemed, &r.CorrectsCounted)
+	r, err := scanScreenTimeReset(d.pool.QueryRow(ctx, `
+		SELECT id, reset_at, minutes_redeemed, corrects_counted, reason, day
+		FROM screen_time_resets ORDER BY reset_at DESC LIMIT 1`))
 	if err != nil {
 		if isNoRows(err) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("last screen time reset: %w", err)
 	}
-	return &r, nil
+	return r, nil
 }
 
 func (d *DB) ListScreenTimeResets(ctx context.Context) ([]game.ScreenTimeReset, error) {
 	rows, err := d.pool.Query(ctx, `
-		SELECT id, reset_at, minutes_redeemed, corrects_counted
+		SELECT id, reset_at, minutes_redeemed, corrects_counted, reason, day
 		FROM screen_time_resets ORDER BY reset_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list screen time resets: %w", err)
@@ -518,13 +535,39 @@ func (d *DB) ListScreenTimeResets(ctx context.Context) ([]game.ScreenTimeReset, 
 
 	var out []game.ScreenTimeReset
 	for rows.Next() {
-		var r game.ScreenTimeReset
-		if err := rows.Scan(&r.ID, &r.ResetAt, &r.MinutesRedeemed, &r.CorrectsCounted); err != nil {
+		r, err := scanScreenTimeReset(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan screen time reset: %w", err)
 		}
-		out = append(out, r)
+		out = append(out, *r)
 	}
 	return out, rows.Err()
+}
+
+func scanScreenTimeReset(row rowScanner) (*game.ScreenTimeReset, error) {
+	var r game.ScreenTimeReset
+	var day *time.Time
+	if err := row.Scan(&r.ID, &r.ResetAt, &r.MinutesRedeemed, &r.CorrectsCounted, &r.Reason, &day); err != nil {
+		return nil, err
+	}
+	if day != nil {
+		s := day.Format("2006-01-02")
+		r.Day = &s
+	}
+	return &r, nil
+}
+
+// parseOptionalDay converts a "YYYY-MM-DD" pointer (nil means no day) into a
+// time.Time pointer suitable for a DATE column parameter.
+func parseOptionalDay(day *string) (*time.Time, error) {
+	if day == nil {
+		return nil, nil
+	}
+	t, err := time.Parse("2006-01-02", *day)
+	if err != nil {
+		return nil, fmt.Errorf("parse day: %w", err)
+	}
+	return &t, nil
 }
 
 // ---- admin ----

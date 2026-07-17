@@ -208,8 +208,17 @@ func (s *Service) effectiveLevel(ctx context.Context, skill string) (int, error)
 
 // Attempt grades a submission, scores it, updates skill/quest/daily state,
 // detects new unlocks, persists everything, and returns the result the PWA
-// needs for the moment of feedback.
-func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, given json.RawMessage, elapsedMS int) (*AttemptResult, error) {
+// needs for the moment of feedback. localDay is an optional device-local
+// YYYY-MM-DD (the PWA always sends it); when present, it's used to roll the
+// screen-time dial over to a new day if this is the first interaction of
+// that day. When absent, that rollover is skipped -- the next screentime GET
+// catches it instead.
+func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, given json.RawMessage, elapsedMS int, localDay ...string) (*AttemptResult, error) {
+	var day string
+	if len(localDay) > 0 {
+		day = localDay[0]
+	}
+
 	q, err := s.store.GetQuestion(ctx, questionID)
 	if err != nil {
 		return nil, fmt.Errorf("get question: %w", err)
@@ -369,9 +378,14 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		}
 	}
 
+	if day != "" {
+		if err := s.EnsureDailyReset(ctx, day); err != nil {
+			return nil, fmt.Errorf("ensure daily reset: %w", err)
+		}
+	}
 	var screenTimeMinutes int
 	if correct {
-		st, err := s.ScreenTime(ctx)
+		st, err := s.computeScreenTime(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("screen time: %w", err)
 		}

@@ -144,12 +144,17 @@ func (h *GameHandler) createAttempt(w http.ResponseWriter, r *http.Request) {
 		QuestionID int64           `json:"question_id"`
 		Given      json.RawMessage `json:"given"`
 		ElapsedMS  int             `json:"elapsed_ms"`
+		Day        string          `json:"day"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
-	result, err := h.svc.Attempt(r.Context(), body.SessionID, body.QuestionID, body.Given, body.ElapsedMS)
+	if body.Day != "" && !validLocalDay(body.Day) {
+		writeError(w, http.StatusBadRequest, "day must be YYYY-MM-DD")
+		return
+	}
+	result, err := h.svc.Attempt(r.Context(), body.SessionID, body.QuestionID, body.Given, body.ElapsedMS, body.Day)
 	if err != nil {
 		h.fail(w, "record attempt", err)
 		return
@@ -164,7 +169,7 @@ func (h *GameHandler) daily(w http.ResponseWriter, r *http.Request) {
 	if day == "" {
 		day = time.Now().UTC().Format("2006-01-02")
 	}
-	if _, err := time.Parse("2006-01-02", day); err != nil {
+	if !validLocalDay(day) {
 		writeError(w, http.StatusBadRequest, "day must be YYYY-MM-DD")
 		return
 	}
@@ -184,6 +189,12 @@ func (h *GameHandler) daily(w http.ResponseWriter, r *http.Request) {
 		Streak:    view.Streak,
 		Calendar:  view.Calendar,
 	})
+}
+
+// validLocalDay reports whether day is a well-formed YYYY-MM-DD string.
+func validLocalDay(day string) bool {
+	_, err := time.Parse("2006-01-02", day)
+	return err == nil
 }
 
 // dailyViewOut mirrors game.DailyView but with Questions run through the
@@ -320,7 +331,12 @@ func (h *GameHandler) updateSettings(w http.ResponseWriter, r *http.Request) {
 // ---- screen time ----
 
 func (h *GameHandler) screenTime(w http.ResponseWriter, r *http.Request) {
-	st, err := h.svc.ScreenTime(r.Context())
+	day := r.URL.Query().Get("day")
+	if !validLocalDay(day) {
+		writeError(w, http.StatusBadRequest, "day must be YYYY-MM-DD")
+		return
+	}
+	st, err := h.svc.ScreenTime(r.Context(), day)
 	if err != nil {
 		h.fail(w, "get screen time", err)
 		return
@@ -329,7 +345,18 @@ func (h *GameHandler) screenTime(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GameHandler) resetScreenTime(w http.ResponseWriter, r *http.Request) {
-	reset, err := h.svc.ResetScreenTime(r.Context())
+	var body struct {
+		Day string `json:"day"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if !validLocalDay(body.Day) {
+		writeError(w, http.StatusBadRequest, "day must be YYYY-MM-DD")
+		return
+	}
+	reset, err := h.svc.ResetScreenTime(r.Context(), body.Day)
 	if err != nil {
 		h.fail(w, "reset screen time", err)
 		return

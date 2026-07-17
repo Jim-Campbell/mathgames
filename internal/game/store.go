@@ -104,6 +104,10 @@ type Store interface {
 	// nil means "all time" (used when no reset has ever happened).
 	CountCorrectsSince(ctx context.Context, since *time.Time) (int, error)
 	InsertScreenTimeReset(ctx context.Context, r *ScreenTimeReset) error
+	// InsertDailyResetIfNew inserts a reason='daily' reset row for localDay
+	// unless one already exists for that day (enforced by a partial unique
+	// index + ON CONFLICT DO NOTHING). Returns whether a row was inserted.
+	InsertDailyResetIfNew(ctx context.Context, localDay string, resetAt time.Time, minutesRedeemed, correctsCounted int) (bool, error)
 	// LastScreenTimeReset returns the most recent reset, or nil if none has
 	// happened yet.
 	LastScreenTimeReset(ctx context.Context) (*ScreenTimeReset, error)

@@ -321,10 +321,15 @@ type Settings struct {
 }
 
 // ScreenTimeReset is one row of screen-time redemption history: a snapshot
-// of the dial at the moment a parent reset it.
+// of the dial at the moment it was reset -- either by a parent (reason
+// "manual") or automatically at the first use of a new local day (reason
+// "daily"). Day is the device-local YYYY-MM-DD the reset applies to; nil for
+// historical manual resets recorded before this column existed.
 type ScreenTimeReset struct {
 	ID              int64     `json:"id"`
 	ResetAt         time.Time `json:"reset_at"`
 	MinutesRedeemed int       `json:"minutes_redeemed"`
 	CorrectsCounted int       `json:"corrects_counted"`
+	Reason          string    `json:"reason"`
+	Day             *string   `json:"day,omitempty"`
 }

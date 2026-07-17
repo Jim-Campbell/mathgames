@@ -447,6 +447,25 @@ func (f *fakeStore) InsertScreenTimeReset(ctx context.Context, r *ScreenTimeRese
 	return nil
 }
 
+func (f *fakeStore) InsertDailyResetIfNew(ctx context.Context, localDay string, resetAt time.Time, minutesRedeemed, correctsCounted int) (bool, error) {
+	for _, r := range f.stResets {
+		if r.Reason == "daily" && r.Day != nil && *r.Day == localDay {
+			return false, nil
+		}
+	}
+	f.nextSTRID++
+	day := localDay
+	f.stResets = append(f.stResets, ScreenTimeReset{
+		ID:              f.nextSTRID,
+		ResetAt:         resetAt,
+		MinutesRedeemed: minutesRedeemed,
+		CorrectsCounted: correctsCounted,
+		Reason:          "daily",
+		Day:             &day,
+	})
+	return true, nil
+}
+
 func (f *fakeStore) LastScreenTimeReset(ctx context.Context) (*ScreenTimeReset, error) {
 	if len(f.stResets) == 0 {
 		return nil, nil
