@@ -29,7 +29,7 @@ content in reviewed batches; it never grades or writes game state.
    - Story batches: rewrite `quest_chapters.title` + `story` for one saga
      per call — adventurous, funny, reading-level generous (he's a reader),
      ~120 words per chapter, each chapter ending with a hook into its
-     `requirement` ("Vegeta blocks the path — land 12 multiplication hits!").
+     `requirement` ("A wild Onix blocks Route 3 — land 12 multiplication hits to battle past it!").
 3. `internal/ai/validate.go` (deterministic, unit-tested against recorded
    fixtures — one good response, one with malformed items): JSON parses;
    known kind; answer shape matches kind; MC index in range; fraction den >

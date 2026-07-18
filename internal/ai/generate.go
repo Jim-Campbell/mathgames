@@ -8,9 +8,9 @@ import (
 )
 
 const skylerProfile = "Skyler is a gifted 8-year-old heading into 3rd grade, working through " +
-	"4th-grade math content. He is a voracious reader and loves Dragon Ball Z. Write for a " +
-	"bright, fast kid: clear wording, no busywork, playful DBZ flavor where it fits naturally " +
-	"(character names, training/battle framing) but never forced into every single item."
+	"4th-grade math content. He is a voracious reader and loves Pokémon. Write for a " +
+	"bright, fast kid: clear wording, no busywork, playful Pokémon flavor where it fits naturally " +
+	"(Pokémon/trainer names, catching/training framing) but never forced into every single item."
 
 // wordProblemRubric maps a 1-10 difficulty level to the grade-band /
 // complexity rubric for word_problems, per ARCHITECTURE.md's skill table
@@ -134,15 +134,15 @@ type ChapterInput struct {
 
 const storyShape = `Respond with a JSON array, one object per chapter, in this shape:
 {"chapter": <chapter number>, "title": "<short punchy chapter title>", "story": "<~120 word narrative>"}
-Each story must end with a hook tying directly into that chapter's requirement (e.g. "Vegeta blocks the path -- land 12 multiplication hits to push through!"). Adventurous, funny, reading-level generous tone -- he's a strong reader. Respond with the JSON array and nothing else -- no markdown code fence, no commentary.`
+Each story must end with a hook tying directly into that chapter's requirement (e.g. "A wild Onix blocks Route 3 -- land 12 multiplication hits to battle past it!"). Adventurous, funny, reading-level generous tone -- he's a strong reader. Respond with the JSON array and nothing else -- no markdown code fence, no commentary.`
 
 // GenerateStory makes one non-agentic batch call rewriting every chapter's
 // title/story for one saga.
 func GenerateStory(ctx context.Context, msgr Messenger, model, saga string, chapters []ChapterInput) (systemPrompt, rawText string, items []StoryItem, err error) {
 	var sb strings.Builder
 	sb.WriteString(skylerProfile)
-	sb.WriteString(fmt.Sprintf("\n\nYou are writing the story text for the %q saga, %d chapters, of a Dragon Ball Z themed math training app. ", saga, len(chapters)))
-	sb.WriteString("This is a private, non-commercial fan project -- playful references to DBZ characters and lore are fine, but write original prose, not copied text.\n\n")
+	sb.WriteString(fmt.Sprintf("\n\nYou are writing the story text for the %q gym arc, %d chapters, of a Pokémon-themed math training app -- a gym journey with catching, rivals, gym leaders, and evolving Pokémon. ", saga, len(chapters)))
+	sb.WriteString("This is a private, non-commercial fan project -- playful references to Pokémon characters and lore are fine, but write original prose, not copied text.\n\n")
 	for _, c := range chapters {
 		sb.WriteString(fmt.Sprintf("Chapter %d (current placeholder title %q): requires %d correct answers in skills %v at difficulty %d+.\n",
 			c.Chapter, c.CurrentTitle, c.RequirementCorrect, c.RequirementSkills, c.RequirementMinDiff))

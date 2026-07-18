@@ -4,12 +4,12 @@ import "testing"
 
 // TestScore hand-checks the ARCHITECTURE.md worked example:
 //
-//	difficulty 4, elapsed 9200ms, streak reaching 7, no zenkai
+//	difficulty 4, elapsed 9200ms, streak reaching 7, no comeback
 //	base = 10*4 = 40
 //	fast_ms = 5000+2000*4 = 13000; 9200 <= 13000 -> x150/100 -> 60
 //	streak 7 >= 6 -> x125/100 -> 75
 //
-// 75 XP. The same answer after 3 straight misses (zenkai) doubles to 150.
+// 75 XP. The same answer after 3 straight misses (comeback) doubles to 150.
 func TestScore(t *testing.T) {
 	got := Score(4, 9200, 7, true, false, false)
 	if got != 75 {
@@ -17,11 +17,11 @@ func TestScore(t *testing.T) {
 	}
 	t.Logf("worked example: 40 base -> 60 speed -> 75 streak = %d XP", got)
 
-	gotZenkai := Score(4, 9200, 7, true, true, false)
-	if gotZenkai != 150 {
-		t.Fatalf("worked example with zenkai: got %d, want 150", gotZenkai)
+	gotComeback := Score(4, 9200, 7, true, true, false)
+	if gotComeback != 150 {
+		t.Fatalf("worked example with comeback: got %d, want 150", gotComeback)
 	}
-	t.Logf("with zenkai: 75 XP doubles to %d XP", gotZenkai)
+	t.Logf("with comeback: 75 XP doubles to %d XP", gotComeback)
 }
 
 func TestScore_StreakBoundaries(t *testing.T) {
@@ -73,14 +73,14 @@ func TestScore_SpeedBoundaries(t *testing.T) {
 func TestScore_WrongAlwaysOneXP(t *testing.T) {
 	cases := []struct {
 		difficulty, elapsed, streak int
-		zenkai, daily               bool
+		comeback, daily             bool
 	}{
 		{10, 0, 20, true, true},
 		{1, 999999, 0, false, false},
 		{5, 5000, 11, false, true},
 	}
 	for _, c := range cases {
-		got := Score(c.difficulty, c.elapsed, c.streak, false, c.zenkai, c.daily)
+		got := Score(c.difficulty, c.elapsed, c.streak, false, c.comeback, c.daily)
 		if got != 1 {
 			t.Errorf("wrong answer %+v: got %d XP, want 1", c, got)
 		}

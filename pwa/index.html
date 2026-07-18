@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0e1c">
 <link rel="manifest" href="/manifest.json">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b0e1a'/%3E%3Ccircle cx='50' cy='50' r='34' fill='%23ff8c1a'/%3E%3C/svg%3E">
-<title>DBZ Math Training</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b0e1a'/%3E%3Ccircle cx='50' cy='38' r='30' fill='%23f4f2ea'/%3E%3Ccircle cx='50' cy='62' r='30' fill='%23ee1515'/%3E%3Crect x='20' y='47' width='60' height='6' fill='%230b0e1a'/%3E%3Ccircle cx='50' cy='50' r='11' fill='%230b0e1a'/%3E%3Ccircle cx='50' cy='50' r='6' fill='%23f4f2ea'/%3E%3C/svg%3E">
+<title>Poké Math Training</title>
 <style>
 :root {
   --bg: #0a0e1c; --card: #141b30; --card2: #1b2440; --text: #f4f2ea; --muted: #8891b3;
@@ -227,7 +227,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 #overlayRoot.show { display: flex; }
 .ov-card { text-align: center; position: relative; }
 .ov-card h2 { font-size: 1.8rem; font-weight: 900; color: var(--gold); margin-bottom: 12px; text-shadow: 0 0 20px rgba(255,213,74,.6); }
-.ov-card.over9000 h2 { color: var(--red); font-size: 2.4rem; text-shadow: 0 0 30px rgba(255,82,82,.8); }
+.ov-card.legendary-moment h2 { color: var(--red); font-size: 2.4rem; text-shadow: 0 0 30px rgba(255,82,82,.8); }
 .ov-flash { position: absolute; inset: -60px; border-radius: 50%; background: radial-gradient(circle, rgba(255,213,74,.5), transparent 65%); animation: flash-pop .6s ease-out; z-index: -1; }
 .ov-flash.big { background: radial-gradient(circle, rgba(255,82,82,.6), transparent 65%); }
 @keyframes flash-pop { 0% { transform: scale(.3); opacity: 0; } 40% { opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
@@ -239,29 +239,29 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .badge-icon { font-size: 3rem; margin: 10px 0; }
 .ov-card .btn { margin-top: 16px; min-width: 180px; }
 .ov-event { cursor: pointer; }
-.ov-event-flash { background: radial-gradient(circle, rgba(255,82,82,.65), transparent 65%); animation: kaioken-pulse 1s ease-in-out infinite; }
-@keyframes kaioken-pulse { 0%,100% { transform: scale(1); opacity: .75; } 50% { transform: scale(1.18); opacity: 1; } }
-.ov-event-name { color: var(--red); font-size: 2.1rem; text-shadow: 0 0 24px rgba(255,82,82,.85); animation: kaioken-shake .35s ease-in-out infinite; }
-@keyframes kaioken-shake { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-3px,1px); } 50% { transform: translate(3px,-1px); } 75% { transform: translate(-2px,-2px); } }
+.ov-event-flash { background: radial-gradient(circle, rgba(255,82,82,.65), transparent 65%); animation: luckyegg-pulse 1s ease-in-out infinite; }
+@keyframes luckyegg-pulse { 0%,100% { transform: scale(1); opacity: .75; } 50% { transform: scale(1.18); opacity: 1; } }
+.ov-event-name { color: var(--red); font-size: 2.1rem; text-shadow: 0 0 24px rgba(255,82,82,.85); animation: luckyegg-shake .35s ease-in-out infinite; }
+@keyframes luckyegg-shake { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-3px,1px); } 50% { transform: translate(3px,-1px); } 75% { transform: translate(-2px,-2px); } }
 .ov-event .ov-sub { color: var(--text); font-weight: 700; }
 .ov-event-xp { font-weight: 900; font-size: 1.3rem; color: var(--gold); margin-top: 8px; }
 
-/* Ultra Instinct: cool, calm, silver-white — a floaty pulse, no shake. */
-.ov-event-ultra_instinct .ov-event-flash { background: radial-gradient(circle, rgba(230,240,255,.7), transparent 65%); animation: ultra-pulse 2.2s ease-in-out infinite; }
-@keyframes ultra-pulse { 0%,100% { transform: scale(1); opacity: .6; } 50% { transform: scale(1.1); opacity: .95; } }
-.ov-event-ultra_instinct .ov-event-name { color: #eef4ff; text-shadow: 0 0 26px rgba(200,220,255,.9); animation: none; }
+/* Critical Hit: cool, calm, silver-white — a floaty pulse, no shake. */
+.ov-event-critical_hit .ov-event-flash { background: radial-gradient(circle, rgba(230,240,255,.7), transparent 65%); animation: crit-pulse 2.2s ease-in-out infinite; }
+@keyframes crit-pulse { 0%,100% { transform: scale(1); opacity: .6; } 50% { transform: scale(1.1); opacity: .95; } }
+.ov-event-critical_hit .ov-event-name { color: #eef4ff; text-shadow: 0 0 26px rgba(200,220,255,.9); animation: none; }
 
-/* Bulma's Capsule: Capsule Corp teal/yellow, a capsule pop instead of a flash. */
-.ov-event-capsule .ov-event-flash { background: radial-gradient(circle, rgba(78,205,196,.55), transparent 65%); animation: kaioken-pulse 1.4s ease-in-out infinite; }
-.ov-event-capsule .ov-event-name { color: #ffd54a; text-shadow: 0 0 22px rgba(78,205,196,.8); animation: none; }
-.ov-capsule-icon { width: 64px; height: 64px; margin: 6px auto; animation: capsule-pop .6s ease-out; }
-@keyframes capsule-pop { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-.ov-event-capsule .ov-event-xp { color: #ffd54a; }
+/* Rare Candy: Poké-tech teal/yellow, a candy pop instead of a flash. */
+.ov-event-rare_candy .ov-event-flash { background: radial-gradient(circle, rgba(78,205,196,.55), transparent 65%); animation: luckyegg-pulse 1.4s ease-in-out infinite; }
+.ov-event-rare_candy .ov-event-name { color: #ffd54a; text-shadow: 0 0 22px rgba(78,205,196,.8); animation: none; }
+.ov-candy-icon { width: 64px; height: 64px; margin: 6px auto; animation: candy-pop .6s ease-out; }
+@keyframes candy-pop { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.ov-event-rare_candy .ov-event-xp { color: #ffd54a; }
 
-/* Elder Kai's Ritual: mystic purple, solemn slow pulse, no shake. */
-.ov-event-elder_kai .ov-event-flash { background: radial-gradient(circle, rgba(138,79,255,.6), transparent 65%); animation: elderkai-pulse 2.6s ease-in-out infinite; }
-@keyframes elderkai-pulse { 0%,100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.08); opacity: .9; } }
-.ov-event-elder_kai .ov-event-name { color: #c9a8ff; text-shadow: 0 0 26px rgba(138,79,255,.85); animation: none; }
+/* Slowpoke's Patience: mystic purple, solemn slow pulse, no shake. */
+.ov-event-slowpoke .ov-event-flash { background: radial-gradient(circle, rgba(138,79,255,.6), transparent 65%); animation: slowpoke-pulse 2.6s ease-in-out infinite; }
+@keyframes slowpoke-pulse { 0%,100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.08); opacity: .9; } }
+.ov-event-slowpoke .ov-event-name { color: #c9a8ff; text-shadow: 0 0 26px rgba(138,79,255,.85); animation: none; }
 .ov-tap-hint { color: var(--muted); font-size: .78rem; margin-top: 16px; text-transform: uppercase; letter-spacing: .06em; }
 
 /* ---- video clip overlay ---- */
@@ -279,21 +279,21 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .clip-done { display: block; width: 100%; margin-top: 14px; }
 
 /* ---- collection ---- */
-.db-tray { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
+.badge-case { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
 .ball { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--muted); }
 .ball.glow { background: radial-gradient(circle at 35% 30%, #fff2c4, var(--orange) 70%); color: #3a1e00; box-shadow: 0 0 14px rgba(255,213,74,.7); }
-.wish-btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--purple), #6a3fd0); color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer; margin-bottom: 18px; min-height: 56px; }
-.wish-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-.wish-pick { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; color: var(--text); font-size: .72rem; cursor: pointer; }
-.fighter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
-.fighter-card { background: var(--card); border-radius: 12px; padding: 10px; text-align: center; border: 2px solid var(--line); }
-.fighter-card.common { border-color: var(--common); } .fighter-card.rare { border-color: var(--rare); }
-.fighter-card.epic { border-color: var(--epic); } .fighter-card.legendary { border-color: var(--legendary); }
-.fighter-card.locked { opacity: .6; border-color: var(--line); }
+.catch-btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--purple), #6a3fd0); color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer; margin-bottom: 18px; min-height: 56px; }
+.catch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.catch-pick { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; color: var(--text); font-size: .72rem; cursor: pointer; }
+.pokemon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.pokemon-card { background: var(--card); border-radius: 12px; padding: 10px; text-align: center; border: 2px solid var(--line); }
+.pokemon-card.common { border-color: var(--common); } .pokemon-card.rare { border-color: var(--rare); }
+.pokemon-card.epic { border-color: var(--epic); } .pokemon-card.legendary { border-color: var(--legendary); }
+.pokemon-card.locked { opacity: .6; border-color: var(--line); }
 .fc-name { font-size: .74rem; font-weight: 700; margin-top: 4px; }
 .fc-rarity { font-size: .62rem; text-transform: uppercase; color: var(--muted); }
 .fc-hint { font-size: .64rem; color: var(--muted); margin-top: 2px; }
-.fighter-svg .aura-ring { animation: aura-pulse 2.4s ease-in-out infinite; }
+.pokemon-svg .aura-ring { animation: aura-pulse 2.4s ease-in-out infinite; }
 
 /* ---- quests ---- */
 .saga { margin-bottom: 20px; }
@@ -364,7 +364,7 @@ label.f.chk input { width: auto; }
 </head>
 <body>
 <header>
-  <h1 onclick="go('home')"><span>DBZ</span> Math</h1>
+  <h1 onclick="go('home')"><span>Poké</span> Math</h1>
   <button id="muteBtn" onclick="toggleMute()">🔊</button>
 </header>
 <div id="offlineBar">📡 Offline — training will resume when you're back online</div>
@@ -389,19 +389,19 @@ const SKILLS = [
   { slug: 'logic', name: 'Logic Puzzles' },
 ];
 const SKILL_NAME = Object.fromEntries(SKILLS.map(s => [s.slug, s.name]));
-const SAGA_NAMES = { saiyan: 'Saiyan Saga', namek: 'Namek Saga', android: 'Android Saga', cell: 'Cell Saga', buu: 'Majin Buu Saga' };
+const SAGA_NAMES = { pewter: 'Pewter Gym', cerulean: 'Cerulean Gym', celadon: 'Celadon Gym', fuchsia: 'Fuchsia Gym', cinnabar: 'Cinnabar Gym' };
 const RARITY_COLOR = { common: '#8891b3', rare: '#4fc3f7', epic: '#b388ff', legendary: '#ffd54a' };
 const TAUNTS = [
   "Every legend starts as a nobody. Prove them wrong.",
-  "Vegeta didn't get strong by giving up. Neither do you.",
-  "Somewhere, a Saiyan is smiling. Go get stronger.",
-  "Think you've hit your limit? Saiyans don't have one.",
-  "Even Goku had a power level of 10 once. This is yours.",
+  "A true trainer never gives up. Neither do you.",
+  "Somewhere, a Pokémon is cheering you on. Go get stronger.",
+  "Think you've hit your limit? Champions don't have one.",
+  "Even Charizard started as a tiny Charmander. This is yours.",
   "Numbers don't lie. Neither does hard work. Let's go.",
   "Scared of a word problem? A word problem should be scared of you.",
-  "Zenkai only kicks in after you get knocked down. Bring it on.",
+  "A comeback only kicks in after you get knocked down. Bring it on.",
   "Today's training: get stronger than yesterday's you.",
-  "Zzz... is that all you've got? Show me a real power level.",
+  "Zzz... is that all you've got? Show me a real Trainer XP.",
 ];
 
 // ---------- state ----------
@@ -413,7 +413,7 @@ const S = {
   numpad: '', numpadVals: ['', ''], numpadField: 0, mcSelected: -1, textVal: '',
   muted: localStorage.getItem('mg_mute') === '1',
   showTimer: localStorage.getItem('mg_timer') !== '0',
-  seenOver9000: localStorage.getItem('mg_seen_over9000') === '1',
+  seenLegendaryMoment: localStorage.getItem('mg_seen_legendary') === '1',
   offline: false, aiEnabled: true,
   taunt: TAUNTS[Math.floor(Math.random() * TAUNTS.length)],
   screenTime: null, screenTimeFullSeen: false, screenTimeLog: null,
@@ -446,7 +446,7 @@ async function api(path, opts = {}) {
   return res.json();
 }
 function askKey() {
-  const k = prompt('Enter the DBZ Math API key:');
+  const k = prompt('Enter the Poké Math API key:');
   if (k) { localStorage.setItem('mg_api_key', k.trim()); onRoute(); }
 }
 function showError(e) { if (e.message === 'offline' || e.message === 'unauthorized') return; toast('Error: ' + e.message); }
@@ -518,11 +518,11 @@ const sfx = (() => {
     streak() { sweep(300, 900, 0, .35, 'sawtooth', .1); },
     levelup() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * .09, .18, 'triangle', .2)); },
     unlockFanfare() { tone(392, 0, .12, 'square', .13); tone(523, .08, .12, 'square', .13); tone(659, .16, .32, 'square', .16); sweep(700, 1500, .05, .4, 'sine', .07); },
-    over9000() { [261, 329, 392, 523, 659, 784, 1047].forEach((f, i) => tone(f, i * .07, .22, 'sawtooth', .18)); sweep(200, 2200, .1, .9, 'sawtooth', .09); },
-    kaioken() { sweep(180, 1400, 0, .32, 'sawtooth', .24); tone(220, .28, .12, 'square', .22); tone(140, .38, .18, 'square', .22); },
-    ultrainstinct() { sweep(600, 1800, 0, .5, 'sine', .1); sweep(900, 2200, .12, .5, 'sine', .08); tone(1760, .3, .4, 'sine', .07); },
-    capsule() { tone(300, 0, .08, 'square', .18); tone(900, .06, .1, 'triangle', .16); tone(1400, .14, .12, 'sine', .14); tone(1800, .2, .14, 'sine', .12); },
-    elderkai() { sweep(90, 130, 0, .9, 'sawtooth', .12); tone(261, .85, .3, 'triangle', .16); tone(329, .9, .3, 'triangle', .14); tone(392, .95, .35, 'triangle', .16); },
+    legendaryMoment() { [261, 329, 392, 523, 659, 784, 1047].forEach((f, i) => tone(f, i * .07, .22, 'sawtooth', .18)); sweep(200, 2200, .1, .9, 'sawtooth', .09); },
+    luckyEgg() { sweep(180, 1400, 0, .32, 'sawtooth', .24); tone(220, .28, .12, 'square', .22); tone(140, .38, .18, 'square', .22); },
+    criticalHit() { sweep(600, 1800, 0, .5, 'sine', .1); sweep(900, 2200, .12, .5, 'sine', .08); tone(1760, .3, .4, 'sine', .07); },
+    rareCandy() { tone(300, 0, .08, 'square', .18); tone(900, .06, .1, 'triangle', .16); tone(1400, .14, .12, 'sine', .14); tone(1800, .2, .14, 'sine', .12); },
+    slowpoke() { sweep(90, 130, 0, .9, 'sawtooth', .12); tone(261, .85, .3, 'triangle', .16); tone(329, .9, .3, 'triangle', .14); tone(392, .95, .35, 'triangle', .16); },
   };
 })();
 document.addEventListener('pointerdown', function once() { sfx.unlockAudio(); document.removeEventListener('pointerdown', once); }, { once: true });
@@ -531,20 +531,60 @@ function renderMuteBtn() { $('#muteBtn').textContent = S.muted ? '🔇' : '🔊'
 
 // ---------- SVG helpers ----------
 function hueFromSlug(slug) { let h = 0; for (const c of String(slug)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; }
-function fighterSVG(f, size) {
+// Body-shape category per slug -- a small parameterized set of silhouettes
+// (bird / dragon / serpent / humanoid / blob / small) evocative of each
+// Pokémon's general form. Anything not listed falls back to 'blob'. These
+// are original geometric shapes, not traced/copied official artwork.
+const POKEMON_SHAPE = {
+  pidgey: 'bird', articuno: 'bird', zapdos: 'bird', moltres: 'bird',
+  charizard: 'dragon', dragonite: 'dragon',
+  gyarados: 'serpent', onix: 'serpent',
+  machop: 'humanoid', alakazam: 'humanoid', mewtwo: 'humanoid', gengar: 'humanoid',
+  snorlax: 'blob', caterpie: 'blob', blastoise: 'blob', venusaur: 'blob',
+  mew: 'small', psyduck: 'small', growlithe: 'small', eevee: 'small', rattata: 'small', geodude: 'small',
+};
+// Palette override per slug (falls back to a hue derived from the slug for
+// anything not listed) -- picked to evoke each Pokémon's signature color.
+const POKEMON_COLOR = {
+  pidgey: '#c8a165', rattata: '#8a7060', caterpie: '#7cb342', eevee: '#c9945a',
+  growlithe: '#e8792a', machop: '#a8785a', geodude: '#8d7b68', charizard: '#f4813a',
+  psyduck: '#f2d675', gyarados: '#3f77c9', gengar: '#6a4c93', snorlax: '#4a5568',
+  blastoise: '#4fa3d1', venusaur: '#4f9e5a', dragonite: '#e8a53a', articuno: '#6fc3e8',
+  zapdos: '#f2c230', moltres: '#e8532e', mewtwo: '#9b7fc9', mew: '#f2a8c9',
+  onix: '#8d97a5', alakazam: '#f2c230', lapras: '#7fb8d9',
+};
+function pokemonSVG(f, size) {
   size = size || 80;
-  const hue = hueFromSlug(f.slug || f.ref || f.name || 'x');
-  const skin = 'hsl(' + hue + ',65%,58%)';
-  const hair = 'hsl(' + ((hue + 40) % 360) + ',55%,28%)';
+  const slug = f.slug || f.ref || f.name || 'x';
+  const hue = hueFromSlug(slug);
+  const body = POKEMON_COLOR[slug] || ('hsl(' + hue + ',60%,55%)');
+  const accent = 'hsl(' + ((hue + 40) % 360) + ',55%,32%)';
   const aura = RARITY_COLOR[f.rarity] || RARITY_COLOR.common;
   const locked = !f.unlocked;
-  return '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" class="fighter-svg">' +
+  const fill = locked ? '#333' : body;
+  const shape = POKEMON_SHAPE[slug] || 'blob';
+  let inner;
+  if (shape === 'bird') {
+    inner = '<path d="M50 30 L20 55 L36 58 L26 78 L46 66 L50 84 L54 66 L74 78 L64 58 L80 55 Z" fill="' + fill + '"/>' +
+      '<circle cx="50" cy="40" r="12" fill="' + fill + '"/>';
+  } else if (shape === 'dragon') {
+    inner = '<path d="M50 82 Q30 70 26 46 Q18 50 14 40 Q26 38 32 46 Q36 30 50 24 Q64 30 68 46 Q74 38 86 40 Q82 50 74 46 Q70 70 50 82 Z" fill="' + fill + '"/>' +
+      '<path d="M50 24 L54 8 L58 22 Z" fill="' + accent + '"/>';
+  } else if (shape === 'serpent') {
+    inner = '<path d="M18 70 Q30 40 46 55 Q62 70 74 42 Q82 28 88 34" stroke="' + fill + '" stroke-width="16" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="86" cy="32" r="9" fill="' + fill + '"/>';
+  } else if (shape === 'humanoid') {
+    inner = '<circle cx="50" cy="40" r="16" fill="' + fill + '"/>' +
+      '<path d="M34 60 Q50 50 66 60 L70 90 L30 90 Z" fill="' + fill + '"/>';
+  } else if (shape === 'small') {
+    inner = '<circle cx="50" cy="56" r="24" fill="' + fill + '"/>' +
+      '<circle cx="36" cy="34" r="8" fill="' + fill + '"/><circle cx="64" cy="34" r="8" fill="' + fill + '"/>';
+  } else {
+    inner = '<circle cx="50" cy="58" r="30" fill="' + fill + '"/><circle cx="50" cy="30" r="14" fill="' + fill + '"/>';
+  }
+  return '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" class="pokemon-svg">' +
     (!locked ? '<circle cx="50" cy="55" r="42" fill="' + aura + '" opacity=".22" class="aura-ring"/>' : '') +
-    '<g opacity="' + (locked ? '.5' : '1') + '">' +
-    '<path d="M30 80 Q50 56 70 80 L70 94 L30 94 Z" fill="' + (locked ? '#333' : skin) + '"/>' +
-    '<circle cx="50" cy="46" r="17" fill="' + (locked ? '#333' : skin) + '"/>' +
-    '<path d="M33 40 Q30 18 50 18 Q72 20 67 40 Q60 25 50 29 Q40 24 33 40 Z" fill="' + (locked ? '#222' : hair) + '"/>' +
-    '</g>' +
+    '<g opacity="' + (locked ? '.5' : '1') + '">' + inner + '</g>' +
     (locked ? '<text x="50" y="60" text-anchor="middle" font-size="26" fill="#6b7396" font-weight="800">?</text>' : '') +
     '</svg>';
 }
@@ -642,20 +682,20 @@ function renderHome(m) {
   m.innerHTML =
     '<div class="hero-banner"><div class="hero-kicker">⚡ SKYLER\'S TRAINING GROUNDS ⚡</div><div class="hero-taunt">"' + esc(S.taunt) + '"</div></div>' +
     (S.screenTime ? gaugeSVG(S.screenTime) : '') +
-    '<div class="power-block"><div class="power-aura"></div><div class="power-num" id="powerNum">' + fmtInt(p.power_level) + '</div><div class="power-label">POWER LEVEL</div></div>' +
+    '<div class="power-block"><div class="power-aura"></div><div class="power-num" id="powerNum">' + fmtInt(p.xp) + '</div><div class="power-label">TRAINER XP</div></div>' +
     '<button class="train-btn" onclick="startTraining(\'mixed\')">⚡ GET RANDOM POWER</button>' +
     '<h3>Skills</h3><div class="skill-chips">' + SKILLS.map(sk =>
       '<button class="skill-chip" onclick="startTraining(\'' + sk.slug + '\')"><span class="sc-name">' + sk.name + '</span><span class="sc-level">Lv ' + (p.levels[sk.slug] || 1) + '</span></button>'
     ).join('') + '</div>' +
     activityBarHTML(p.days) +
     recentUnlocksHTML();
-  animatePowerNum(p.power_level);
+  animatePowerNum(p.xp);
   if (S.screenTime) animateGaugeNeedle(S.screenTime);
   const strip = document.querySelector('.activity-scroll');
   if (strip) strip.scrollLeft = strip.scrollWidth; // newest day (rightmost) in view
 }
 
-// ---------- screen-time ki gauge (scouter-style semicircle, 0-60 min) ----------
+// ---------- screen-time energy gauge (Poké Ball meter, semicircle, 0-60 min) ----------
 // Angle convention: 0deg points left (9 o'clock, 0 min), sweeping clockwise
 // over the top (12 o'clock, 30 min) to right (3 o'clock, 60 min = cap).
 function gaugeNeedlePoint(minutes, cap, len) {
@@ -672,7 +712,7 @@ function gaugeSVG(st) {
     const outer = gaugeNeedlePoint(v, st.minutes_cap, 82);
     ticks.push('<line class="gauge-tick" x1="' + inner.x.toFixed(1) + '" y1="' + inner.y.toFixed(1) + '" x2="' + outer.x.toFixed(1) + '" y2="' + outer.y.toFixed(1) + '"/>');
   }
-  const label = full ? 'MAXIMUM POWER — 1 HOUR EARNED!' : 'SCREEN TIME';
+  const label = full ? 'FULLY CHARGED! — 1 HOUR EARNED!' : 'SCREEN TIME';
   // The label is plain HTML, not SVG <text>, so the full-state copy can wrap
   // instead of overflowing a fixed-width viewBox (it did, badly, as SVG text).
   return '<div class="gauge-wrap ' + (full ? 'full' : '') + '" id="gaugeWrap">' +
@@ -743,10 +783,10 @@ function activityBarHTML(days) {
 }
 function recentUnlocksHTML() {
   if (!S.collection) return '';
-  const recent = S.collection.fighters.filter(f => f.unlocked).sort((a, b) => (b.unlocked_at || '').localeCompare(a.unlocked_at || '')).slice(0, 6);
+  const recent = S.collection.pokemon.filter(f => f.unlocked).sort((a, b) => (b.unlocked_at || '').localeCompare(a.unlocked_at || '')).slice(0, 6);
   if (!recent.length) return '';
   return '<h3>Recent Unlocks</h3><div class="unlock-strip">' + recent.map(f =>
-    '<div class="unlock-mini">' + fighterSVG(f, 56) + '<div class="um-name">' + esc(f.name) + '</div></div>'
+    '<div class="unlock-mini">' + pokemonSVG(f, 56) + '<div class="um-name">' + esc(f.name) + '</div></div>'
   ).join('') + '</div>';
 }
 function animatePowerNum(target) {
@@ -874,8 +914,8 @@ async function continueAfterFeedback() {
   const overlays = [];
   if (result.event) overlays.push({ type: 'event', event: result.event, xpEarned: result.xp_earned });
   if (result.level_changed > 0) overlays.push({ type: 'levelup', skill, level: result.skill_level });
-  if (!S.seenOver9000 && result.power_level_before < 9000 && result.power_level >= 9000) {
-    overlays.push({ type: 'over9000' }); localStorage.setItem('mg_seen_over9000', '1'); S.seenOver9000 = true;
+  if (!S.seenLegendaryMoment && result.xp_before < 9000 && result.xp >= 9000) {
+    overlays.push({ type: 'legendary' }); localStorage.setItem('mg_seen_legendary', '1'); S.seenLegendaryMoment = true;
   }
   (result.unlocks || []).forEach(u => overlays.push({ type: 'unlock', unlock: u }));
 
@@ -903,9 +943,9 @@ function advanceOverlay() {
     const t = S.currentOverlay.type;
     if (t === 'levelup') sfx.levelup();
     else if (t === 'unlock') sfx.unlockFanfare();
-    else if (t === 'over9000') sfx.over9000();
+    else if (t === 'legendary') sfx.legendaryMoment();
     else if (t === 'event') {
-      const eventSfx = { ultra_instinct: 'ultrainstinct', capsule: 'capsule', elder_kai: 'elderkai' }[S.currentOverlay.event.slug] || 'kaioken';
+      const eventSfx = { critical_hit: 'criticalHit', rare_candy: 'rareCandy', slowpoke: 'slowpoke' }[S.currentOverlay.event.slug] || 'luckyEgg';
       sfx[eventSfx]();
       eventDismissTimer = setTimeout(advanceOverlay, 2500);
     }
@@ -977,7 +1017,7 @@ function fastMs(d) { return 5000 + 2000 * d; }
 function okMs(d) { return 3 * fastMs(d); }
 const KI_ZONES = {
   blazing: { taunt: 'BLAZING! 🔥 x1.5 power!', snap: 100 },
-  fast:    { taunt: 'Vegeta’s catching up… x1.2', snap: 62 },
+  fast:    { taunt: 'A rival trainer is catching up… x1.2', snap: 62 },
   base:    { taunt: 'Powering down — focus!', snap: 22 },
 };
 function kiZone(elapsed, d) {
@@ -1056,7 +1096,7 @@ function feedbackHTML() {
     const speedTag = f.speedZone === 'blazing' ? '<div class="fb-speed blazing">⚡ BLAZING FAST · +50%</div>'
       : f.speedZone === 'fast' ? '<div class="fb-speed fast">⚡ Fast · +20%</div>' : '';
     const sttChip = f.sttDelta > 0 ? '<div class="stt-chip">+' + f.sttDelta + ' min ⏱</div>' : '';
-    return '<div class="feedback correct"><div class="fb-title">✅ Correct!</div><div class="xp-fly">+' + f.xp_earned + ' ⚡' + (f.zenkai ? ' 🔥 ZENKAI x2!' : '') + '</div>' + speedTag + sttChip + '</div>';
+    return '<div class="feedback correct"><div class="fb-title">✅ Correct!</div><div class="xp-fly">+' + f.xp_earned + ' ⚡' + (f.comeback ? ' 🔥 COMEBACK x2!' : '') + '</div>' + speedTag + sttChip + '</div>';
   }
   return '<div class="feedback wrong"><div class="fb-title">Not quite</div>' +
     '<div class="fb-answer">Answer: ' + esc(formatAnswer(S.current.payload.kind, f.answer)) + '</div>' +
@@ -1082,33 +1122,35 @@ function renderOverlay() {
   let html = '';
   if (o.type === 'event') {
     const e = o.event;
-    const capsuleIcon = e.slug === 'capsule'
-      ? '<svg class="ov-capsule-icon" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#4ecdc4"/><path d="M6 32a26 26 0 0 1 52 0" fill="#ffd54a"/><circle cx="32" cy="32" r="26" fill="none" stroke="#04203a" stroke-width="2"/><line x1="6" y1="32" x2="58" y2="32" stroke="#04203a" stroke-width="2"/></svg>'
+    const candyIcon = e.slug === 'rare_candy'
+      ? '<svg class="ov-candy-icon" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#4ecdc4"/><path d="M6 32a26 26 0 0 1 52 0" fill="#ffd54a"/><circle cx="32" cy="32" r="26" fill="none" stroke="#04203a" stroke-width="2"/><line x1="6" y1="32" x2="58" y2="32" stroke="#04203a" stroke-width="2"/></svg>'
       : '';
     html = '<div class="ov-card ov-event ov-event-' + esc(e.slug) + '">' +
       '<div class="ov-flash big ov-event-flash"></div>' +
       '<h2 class="ov-event-name">' + esc(e.name) + '</h2>' +
-      capsuleIcon +
+      candyIcon +
       '<div class="ov-sub">' + esc(e.message) + '</div>' +
       '<div class="ov-event-xp">' + esc(e.multiplier) + ' &middot; +' + fmtInt(e.xp_before) + ' ⚡ &rarr; +' + fmtInt(o.xpEarned) + ' ⚡</div>' +
       '<div class="ov-tap-hint">Tap to continue</div></div>';
   } else if (o.type === 'levelup') {
     html = '<div class="ov-card levelup"><div class="ov-flash"></div><h2>LEVEL UP!</h2><div class="ov-sub">' + (SKILL_NAME[o.skill] || o.skill) + ' is now Level ' + o.level + '</div><button class="btn primary" onclick="advanceOverlay()">Nice!</button></div>';
-  } else if (o.type === 'over9000') {
-    html = '<div class="ov-card over9000"><div class="ov-flash big"></div><h2>IT’S OVER 9000!!</h2><div class="ov-sub">Power level has broken the scouter.</div><button class="btn primary" onclick="advanceOverlay()">WOOHOO!</button></div>';
+  } else if (o.type === 'legendary') {
+    html = '<div class="ov-card legendary-moment"><div class="ov-flash big"></div><h2>IT’S CHARIZARD!!</h2><div class="ov-sub">Your Trainer XP just broke the charts!</div><button class="btn primary" onclick="advanceOverlay()">WOOHOO!</button></div>';
   } else if (o.type === 'unlock') {
     const u = o.unlock;
-    if (u.kind === 'badge') {
-      html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>Badge Earned!</h2><div class="badge-icon">🎖️</div><div class="ov-name">' + esc(u.name) + '</div><button class="btn primary" onclick="advanceOverlay()">Nice!</button></div>';
+    if (u.kind === 'ribbon') {
+      html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>Ribbon Earned!</h2><div class="badge-icon">🎀</div><div class="ov-name">' + esc(u.name) + '</div><button class="btn primary" onclick="advanceOverlay()">Nice!</button></div>';
+    } else if (u.kind === 'gym_badge') {
+      html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>Gym Badge Earned!</h2><div class="badge-icon">🎖️</div><div class="ov-name">' + esc(u.name) + '</div><button class="btn primary" onclick="advanceOverlay()">Nice!</button></div>';
     } else {
-      html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>New Fighter!</h2>' + fighterSVG({ slug: u.ref, rarity: u.rarity, unlocked: true }, 140) +
+      html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>New Pokémon!</h2>' + pokemonSVG({ slug: u.ref, rarity: u.rarity, unlocked: true }, 140) +
         '<div class="ov-name">' + esc(u.name) + '</div><div class="ov-rarity ' + u.rarity + '">' + u.rarity + '</div>' +
         '<button class="btn primary" onclick="advanceOverlay()">Awesome!</button></div>';
     }
   } else if (o.type === 'questcomplete') {
     html = '<div class="ov-card questcomplete"><div class="ov-flash"></div><h2>Chapter Complete!</h2><div class="ov-sub">' + esc(o.chapter.title) + '</div><button class="btn primary" onclick="finishQuestSession()">Back to Quests</button></div>';
-  } else if (o.type === 'wish') {
-    html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>🐉 Shenron Grants Your Wish!</h2>' + fighterSVG({ slug: o.unlock.ref, rarity: o.unlock.rarity, unlocked: true }, 140) +
+  } else if (o.type === 'catch') {
+    html = '<div class="ov-card unlock"><div class="ov-flash"></div><h2>⚪ The Master Ball Worked!</h2>' + pokemonSVG({ slug: o.unlock.ref, rarity: o.unlock.rarity, unlocked: true }, 140) +
       '<div class="ov-name">' + esc(o.unlock.name) + '</div><button class="btn primary" onclick="S.currentOverlay=null; render()">Amazing!</button></div>';
   } else if (o.type === 'clip') {
     html = o.playing
@@ -1140,33 +1182,33 @@ function playClip() {
 function renderCollection(m) {
   const c = S.collection;
   if (!c) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
-  m.innerHTML = '<div class="collection-wrap">' + dragonBallTrayHTML(c) +
-    '<div class="fighter-grid">' + c.fighters.map(f =>
-      '<div class="fighter-card ' + f.rarity + ' ' + (f.unlocked ? '' : 'locked') + '">' + fighterSVG(f, 72) +
+  m.innerHTML = '<div class="collection-wrap">' + gymBadgeCaseHTML(c) +
+    '<div class="pokemon-grid">' + c.pokemon.map(f =>
+      '<div class="pokemon-card ' + f.rarity + ' ' + (f.unlocked ? '' : 'locked') + '">' + pokemonSVG(f, 72) +
       '<div class="fc-name">' + (f.unlocked ? esc(f.name) : '???') + '</div>' +
       (f.unlocked ? '<div class="fc-rarity">' + f.rarity + '</div>' : '<div class="fc-hint">' + esc(f.hint) + '</div>') +
       '</div>'
     ).join('') + '</div></div>';
 }
-function dragonBallTrayHTML(c) {
-  const balls = new Set(c.dragon_balls);
-  const tray = Array.from({ length: 7 }, (_, i) => i + 1).map(n => '<div class="ball ' + (balls.has(n) ? 'glow' : '') + '">' + n + '</div>').join('');
-  return '<div class="db-tray">' + tray + '</div>' + (c.ready_to_wish ? '<button class="wish-btn" onclick="openWishDialog()">🐉 SUMMON SHENRON</button>' : '');
+function gymBadgeCaseHTML(c) {
+  const badges = new Set(c.gym_badges);
+  const tray = Array.from({ length: 8 }, (_, i) => i + 1).map(n => '<div class="ball ' + (badges.has(n) ? 'glow' : '') + '">' + n + '</div>').join('');
+  return '<div class="badge-case">' + tray + '</div>' + (c.ready_to_catch ? '<button class="catch-btn" onclick="openCatchDialog()">⚪ USE MASTER BALL</button>' : '');
 }
-function openWishDialog() {
-  const locked = S.collection.fighters.filter(f => !f.unlocked);
-  if (!locked.length) { toast('All fighters already unlocked!'); return; }
-  openDialog('<h2>Summon Shenron</h2><p class="muted">Choose your wish:</p><div class="wish-grid">' + locked.map(f =>
-    '<button class="wish-pick" onclick="makeWish(\'' + f.slug + '\')">' + fighterSVG(Object.assign({}, f, { unlocked: true }), 56) + '<div>' + esc(f.name) + '</div></button>'
+function openCatchDialog() {
+  const locked = S.collection.pokemon.filter(f => !f.unlocked);
+  if (!locked.length) { toast('All Pokémon already caught!'); return; }
+  openDialog('<h2>Use the Master Ball</h2><p class="muted">Choose your Pokémon:</p><div class="catch-grid">' + locked.map(f =>
+    '<button class="catch-pick" onclick="makeCatch(\'' + f.slug + '\')">' + pokemonSVG(Object.assign({}, f, { unlocked: true }), 56) + '<div>' + esc(f.name) + '</div></button>'
   ).join('') + '</div>');
 }
-async function makeWish(slug) {
+async function makeCatch(slug) {
   closeDialog();
   try {
-    const u = await api('/wish', { method: 'POST', body: { fighter: slug } });
+    const u = await api('/catch', { method: 'POST', body: { pokemon: slug } });
     S.collection = await api('/collection');
     try { S.profile = await api('/profile'); } catch (e) {}
-    S.currentOverlay = { type: 'wish', unlock: u };
+    S.currentOverlay = { type: 'catch', unlock: u };
     sfx.unlockFanfare();
     render();
   } catch (e) { showError(e); }
@@ -1227,9 +1269,9 @@ function renderParents(m) {
     '<h3>Settings</h3>' + settingsFormHTML(st) +
     '<h3>Backup</h3><button class="btn" onclick="downloadExport()">⬇ Export Full Backup</button>' +
     '<h3 class="danger-h">Danger Zone</h3><div class="danger-zone">' +
-    '<div class="danger-copy">Reset all of Skyler’s progress back to zero — power level, XP, levels, streaks, unlocks, daily history, and quest progress. The question bank and saga stories are kept. <b>This cannot be undone</b> (export a backup first).</div>' +
+    '<div class="danger-copy">Reset all of Skyler’s progress back to zero — Trainer XP, levels, streaks, unlocks, daily history, and quest progress. The question bank and saga stories are kept. <b>This cannot be undone</b> (export a backup first).</div>' +
     '<button class="btn danger" onclick="confirmReset()">↺ Reset All Progress</button></div>' +
-    '<div class="version">DBZ Math Training · v1.0</div></div>';
+    '<div class="version">Poké Math Training · v1.0</div></div>';
 }
 function dayChartSVG(perDay) {
   if (!perDay.length) return '<div class="empty">No activity yet</div>';
@@ -1250,7 +1292,7 @@ function missHTML(mi) {
 function screenTimeBlockHTML(st, settings) {
   if (!st || !settings) return '<div class="empty">Loading…</div>';
   return '<div class="st-block"><div><div class="st-dial-value">' + st.minutes_earned + ' / ' + st.minutes_cap + ' min</div>' +
-    '<div class="st-sub">' + st.corrects_since_reset + ' correct' + (st.corrects_since_reset === 1 ? '' : 's') + ' since ' + (st.since_reset ? new Date(st.since_reset).toLocaleDateString() : 'the start') + (st.full ? ' · MAXIMUM POWER!' : '') + '</div></div>' +
+    '<div class="st-sub">' + st.corrects_since_reset + ' correct' + (st.corrects_since_reset === 1 ? '' : 's') + ' since ' + (st.since_reset ? new Date(st.since_reset).toLocaleDateString() : 'the start') + (st.full ? ' · FULLY CHARGED!' : '') + '</div></div>' +
     '<button class="btn' + (st.minutes_earned === 0 ? ' ghost' : ' primary') + ' sm" ' + (st.minutes_earned === 0 ? 'disabled' : '') + ' onclick="confirmResetScreenTime()">Reset</button></div>' +
     '<button class="btn ghost sm" onclick="go(\'stlog\')">Screen Time Log →</button>' +
     '<label class="f">Minutes earned per correct answer</label>' +

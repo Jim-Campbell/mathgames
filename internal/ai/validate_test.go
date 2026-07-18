@@ -11,15 +11,15 @@ import (
 // expression matches its answer.
 const goodWordProblemsFixture = `[
   {
-    "payload": {"kind": "numeric", "prompt": "Goku trains 34 warriors for 12 days each, plus 50 bonus minutes. How many total minutes?"},
+    "payload": {"kind": "numeric", "prompt": "Ash trains 34 Pokémon for 12 days each, plus 50 bonus minutes. How many total minutes?"},
     "answer": {"value": 458},
     "explanation": "34 warriors x 12 days = 408, plus 50 bonus minutes = 458.",
     "check": "34*12+50"
   },
   {
-    "payload": {"kind": "numeric", "prompt": "Vegeta has 120 senzu beans split evenly among 8 fighters. How many does each get?"},
+    "payload": {"kind": "numeric", "prompt": "Brock has 120 Poké Puffs split evenly among 8 Pokémon. How many does each get?"},
     "answer": {"value": 15},
-    "explanation": "120 / 8 = 15 beans per fighter.",
+    "explanation": "120 / 8 = 15 Poké Puffs per Pokémon.",
     "check": "120/8"
   }
 ]`
@@ -29,7 +29,7 @@ const goodWordProblemsFixture = `[
 // and malformed answer JSON.
 const badWordProblemsFixture = `[
   {
-    "payload": {"kind": "numeric", "prompt": "Piccolo meditates 20 minutes, three times a day, for 5 days. Total minutes?"},
+    "payload": {"kind": "numeric", "prompt": "Misty trains 20 minutes, three times a day, for 5 days. Total minutes?"},
     "answer": {"value": 300},
     "explanation": "20 x 3 x 5 = 300.",
     "check": "20*3*5"
@@ -55,14 +55,14 @@ const badWordProblemsFixture = `[
 
 const goodLogicFixture = `[
   {
-    "payload": {"kind": "mc", "prompt": "Which does not belong: Goku, Krillin, Piccolo, banana?", "choices": ["Goku", "Krillin", "Piccolo", "banana"]},
+    "payload": {"kind": "mc", "prompt": "Which does not belong: Pikachu, Charmander, Squirtle, banana?", "choices": ["Pikachu", "Charmander", "Squirtle", "banana"]},
     "answer": {"index": 3},
-    "explanation": "A banana is not a Dragon Ball Z fighter."
+    "explanation": "A banana is not a Pokémon."
   },
   {
-    "payload": {"kind": "text", "prompt": "In a grid puzzle, Gohan is left of Videl and right of Goten. Who is in the middle?"},
-    "answer": {"value": "gohan", "accept": ["gohan"]},
-    "explanation": "Gohan sits between Goten and Videl."
+    "payload": {"kind": "text", "prompt": "In a grid puzzle, Misty is left of Brock and right of Ash. Who is in the middle?"},
+    "answer": {"value": "misty", "accept": ["misty"]},
+    "explanation": "Misty sits between Ash and Brock."
   }
 ]`
 

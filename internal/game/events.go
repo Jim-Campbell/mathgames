@@ -14,13 +14,13 @@ const eventCooldown = 10
 
 // Event is a random-event registry entry.
 type Event struct {
-	Slug    string // "kaioken"
-	Name    string // "Kaio-ken ×2!"
+	Slug    string // "lucky_egg"
+	Name    string // "Lucky Egg! Double XP!"
 	Message string // "WOW — you just DOUBLED your points!"
 	Weight  int    // relative pick weight among eligible events (>0)
-	XPNum   int    // multiplier numerator   (kaioken: 2)
-	XPDen   int    // multiplier denominator (kaioken: 1)
-	XPFlat  int    // flat XP bonus added after the multiplier (capsule: 100)
+	XPNum   int    // multiplier numerator   (lucky_egg: 2)
+	XPDen   int    // multiplier denominator (lucky_egg: 1)
+	XPFlat  int    // flat XP bonus added after the multiplier (rare_candy: 100)
 
 	// Eligible reports whether this event may fire for this attempt.
 	// nil means always eligible.
@@ -32,7 +32,7 @@ type Event struct {
 func (e *Event) Apply(xp int) int { return xp*e.XPNum/e.XPDen + e.XPFlat }
 
 // MultiplierString is the display string for AttemptResult ("×2" or, for
-// flat-only events like capsule, "+100 ⚡").
+// flat-only events like rare_candy, "+100 ⚡").
 func (e *Event) MultiplierString() string {
 	if e.XPNum == e.XPDen {
 		return fmt.Sprintf("+%d ⚡", e.XPFlat)
@@ -43,29 +43,29 @@ func (e *Event) MultiplierString() string {
 	return fmt.Sprintf("×%d/%d", e.XPNum, e.XPDen)
 }
 
-// events is the code-defined registry of random events. kaioken stays first
-// (events[0]) since existing tests reference it by index.
+// events is the code-defined registry of random events. lucky_egg stays
+// first (events[0]) since existing tests reference it by index.
 var events = []Event{
 	{
-		Slug:    "kaioken",
-		Name:    "Kaio-ken ×2!",
+		Slug:    "lucky_egg",
+		Name:    "Lucky Egg! Double XP!",
 		Message: "WOW — you just DOUBLED your points!",
 		Weight:  4,
 		XPNum:   2,
 		XPDen:   1,
 	},
 	{
-		Slug:    "capsule",
-		Name:    "Bulma's Capsule!",
-		Message: "A capsule pops open — +100 bonus points inside!",
+		Slug:    "rare_candy",
+		Name:    "Rare Candy!",
+		Message: "A Rare Candy pops out — +100 bonus points inside!",
 		Weight:  3,
 		XPNum:   1,
 		XPDen:   1,
 		XPFlat:  100,
 	},
 	{
-		Slug:    "elder_kai",
-		Name:    "Elder Kai's Ritual!",
+		Slug:    "slowpoke",
+		Name:    "Slowpoke's Patience!",
 		Message: "That took forever… but the power-up is REAL. Points DOUBLED!",
 		Weight:  2,
 		XPNum:   2,
@@ -75,8 +75,8 @@ var events = []Event{
 		},
 	},
 	{
-		Slug:    "ultra_instinct",
-		Name:    "ULTRA INSTINCT!",
+		Slug:    "critical_hit",
+		Name:    "CRITICAL HIT!",
 		Message: "Your body moved on its own — TRIPLE points!",
 		Weight:  2,
 		XPNum:   3,

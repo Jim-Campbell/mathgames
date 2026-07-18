@@ -11,7 +11,7 @@ import (
 const mid = 20000
 
 // TestEvent_Apply_WorkedExample hand-checks the ARCHITECTURE.md scoring
-// worked example (difficulty 4, fast, streak 7 -> 75 XP) with kaioken
+// worked example (difficulty 4, fast, streak 7 -> 75 XP) with lucky_egg
 // applied last:
 //
 //	75 XP * 2/1 = 150 XP; xp_before = 75.
@@ -20,53 +20,53 @@ func TestEvent_Apply_WorkedExample(t *testing.T) {
 	if base != 75 {
 		t.Fatalf("worked example base: got %d, want 75", base)
 	}
-	kaioken := events[0]
-	got := kaioken.Apply(base)
+	luckyEgg := events[0]
+	got := luckyEgg.Apply(base)
 	if got != 150 {
-		t.Fatalf("kaioken applied to worked example: got %d, want 150", got)
+		t.Fatalf("lucky_egg applied to worked example: got %d, want 150", got)
 	}
 }
 
-// TestEvent_Apply_UltraInstinct hand-checks the ARCHITECTURE.md worked
-// example (75 XP) with ultra_instinct (×3): 75 * 3/1 = 225.
-func TestEvent_Apply_UltraInstinct(t *testing.T) {
+// TestEvent_Apply_CriticalHit hand-checks the ARCHITECTURE.md worked
+// example (75 XP) with critical_hit (×3): 75 * 3/1 = 225.
+func TestEvent_Apply_CriticalHit(t *testing.T) {
 	base := Score(4, 9200, 7, true, false, false)
 	if base != 75 {
 		t.Fatalf("worked example base: got %d, want 75", base)
 	}
-	ui := findEvent(t, "ultra_instinct")
-	got := ui.Apply(base)
+	ch := findEvent(t, "critical_hit")
+	got := ch.Apply(base)
 	if got != 225 {
-		t.Fatalf("ultra_instinct applied to worked example: got %d, want 225", got)
+		t.Fatalf("critical_hit applied to worked example: got %d, want 225", got)
 	}
 }
 
-// TestEvent_Apply_Capsule hand-checks the ARCHITECTURE.md worked example
-// (75 XP) with capsule (flat +100, no multiplier): 75*1/1 + 100 = 175.
-func TestEvent_Apply_Capsule(t *testing.T) {
+// TestEvent_Apply_RareCandy hand-checks the ARCHITECTURE.md worked example
+// (75 XP) with rare_candy (flat +100, no multiplier): 75*1/1 + 100 = 175.
+func TestEvent_Apply_RareCandy(t *testing.T) {
 	base := Score(4, 9200, 7, true, false, false)
 	if base != 75 {
 		t.Fatalf("worked example base: got %d, want 75", base)
 	}
-	capsule := findEvent(t, "capsule")
-	got := capsule.Apply(base)
+	rareCandy := findEvent(t, "rare_candy")
+	got := rareCandy.Apply(base)
 	if got != 175 {
-		t.Fatalf("capsule applied to worked example: got %d, want 175", got)
+		t.Fatalf("rare_candy applied to worked example: got %d, want 175", got)
 	}
 }
 
-// TestEvent_Apply_ElderKai hand-checks its own worked example (can't
+// TestEvent_Apply_Slowpoke hand-checks its own worked example (can't
 // co-occur with a speed bonus): difficulty 4, slow (>okMS=39000), streak 7
-// -> base 40, no speed bonus, ×125/100 streak = 50, elder_kai ×2 -> 100.
-func TestEvent_Apply_ElderKai(t *testing.T) {
+// -> base 40, no speed bonus, ×125/100 streak = 50, slowpoke ×2 -> 100.
+func TestEvent_Apply_Slowpoke(t *testing.T) {
 	base := Score(4, 39001, 7, true, false, false)
 	if base != 50 {
-		t.Fatalf("elder kai worked example base: got %d, want 50", base)
+		t.Fatalf("slowpoke worked example base: got %d, want 50", base)
 	}
-	ek := findEvent(t, "elder_kai")
-	got := ek.Apply(base)
+	sp := findEvent(t, "slowpoke")
+	got := sp.Apply(base)
 	if got != 100 {
-		t.Fatalf("elder_kai applied to worked example: got %d, want 100", got)
+		t.Fatalf("slowpoke applied to worked example: got %d, want 100", got)
 	}
 }
 
@@ -148,8 +148,8 @@ func TestEventRegistry_Sanity(t *testing.T) {
 }
 
 // TestRollEvent_Eligibility exercises the difficulty-4 thresholds
-// (fastMS=13000, okMS=39000): a fast answer (13000) can roll ultra_instinct
-// but never elder_kai; a slow answer (39001) the reverse; a middling answer
+// (fastMS=13000, okMS=39000): a fast answer (13000) can roll critical_hit
+// but never slowpoke; a slow answer (39001) the reverse; a middling answer
 // (20000) neither.
 func TestRollEvent_Eligibility(t *testing.T) {
 	const difficulty = 4
@@ -158,39 +158,39 @@ func TestRollEvent_Eligibility(t *testing.T) {
 		elapsedMS     int
 		wantNeverSlug string
 	}{
-		{"fast", 13000, "elder_kai"},
-		{"slow", 39001, "ultra_instinct"},
+		{"fast", 13000, "slowpoke"},
+		{"slow", 39001, "critical_hit"},
 		{"middling", 20000, ""}, // checked separately below
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			seenUltra, seenElder := false, false
+			seenCritical, seenSlowpoke := false, false
 			for seed := int64(0); seed < 10000; seed++ {
 				rng := rand.New(rand.NewSource(seed))
 				if ev := RollEvent(rng, eventCooldown, c.elapsedMS, difficulty); ev != nil {
-					if ev.Slug == "ultra_instinct" {
-						seenUltra = true
+					if ev.Slug == "critical_hit" {
+						seenCritical = true
 					}
-					if ev.Slug == "elder_kai" {
-						seenElder = true
+					if ev.Slug == "slowpoke" {
+						seenSlowpoke = true
 					}
 				}
 			}
-			if c.name == "middling" && (seenUltra || seenElder) {
-				t.Fatalf("middling elapsedMS %d: ultra_instinct=%v elder_kai=%v, want neither", c.elapsedMS, seenUltra, seenElder)
+			if c.name == "middling" && (seenCritical || seenSlowpoke) {
+				t.Fatalf("middling elapsedMS %d: critical_hit=%v slowpoke=%v, want neither", c.elapsedMS, seenCritical, seenSlowpoke)
 			}
-			if c.wantNeverSlug == "ultra_instinct" && seenUltra {
-				t.Fatalf("slow elapsedMS %d: ultra_instinct fired, want never", c.elapsedMS)
+			if c.wantNeverSlug == "critical_hit" && seenCritical {
+				t.Fatalf("slow elapsedMS %d: critical_hit fired, want never", c.elapsedMS)
 			}
-			if c.wantNeverSlug == "elder_kai" && seenElder {
-				t.Fatalf("fast elapsedMS %d: elder_kai fired, want never", c.elapsedMS)
+			if c.wantNeverSlug == "slowpoke" && seenSlowpoke {
+				t.Fatalf("fast elapsedMS %d: slowpoke fired, want never", c.elapsedMS)
 			}
 		})
 	}
 }
 
-// TestRollEvent_WeightWalk_Fast confirms fast answers can roll kaioken,
-// capsule, and ultra_instinct (ordered by weight/count), never elder_kai.
+// TestRollEvent_WeightWalk_Fast confirms fast answers can roll lucky_egg,
+// rare_candy, and critical_hit (ordered by weight/count), never slowpoke.
 func TestRollEvent_WeightWalk_Fast(t *testing.T) {
 	const difficulty = 4
 	counts := map[string]int{}
@@ -200,19 +200,19 @@ func TestRollEvent_WeightWalk_Fast(t *testing.T) {
 			counts[ev.Slug]++
 		}
 	}
-	if counts["elder_kai"] != 0 {
-		t.Fatalf("fast rolls produced elder_kai %d times, want 0", counts["elder_kai"])
+	if counts["slowpoke"] != 0 {
+		t.Fatalf("fast rolls produced slowpoke %d times, want 0", counts["slowpoke"])
 	}
-	if counts["kaioken"] == 0 || counts["capsule"] == 0 || counts["ultra_instinct"] == 0 {
-		t.Fatalf("expected kaioken, capsule, and ultra_instinct all to occur, got %v", counts)
+	if counts["lucky_egg"] == 0 || counts["rare_candy"] == 0 || counts["critical_hit"] == 0 {
+		t.Fatalf("expected lucky_egg, rare_candy, and critical_hit all to occur, got %v", counts)
 	}
-	if !(counts["kaioken"] > counts["capsule"] && counts["capsule"] > counts["ultra_instinct"]) {
-		t.Fatalf("expected kaioken > capsule > ultra_instinct by count, got %v", counts)
+	if !(counts["lucky_egg"] > counts["rare_candy"] && counts["rare_candy"] > counts["critical_hit"]) {
+		t.Fatalf("expected lucky_egg > rare_candy > critical_hit by count, got %v", counts)
 	}
 }
 
-// TestRollEvent_WeightWalk_Slow confirms slow answers can roll elder_kai,
-// never ultra_instinct.
+// TestRollEvent_WeightWalk_Slow confirms slow answers can roll slowpoke,
+// never critical_hit.
 func TestRollEvent_WeightWalk_Slow(t *testing.T) {
 	const difficulty = 4
 	counts := map[string]int{}
@@ -222,10 +222,10 @@ func TestRollEvent_WeightWalk_Slow(t *testing.T) {
 			counts[ev.Slug]++
 		}
 	}
-	if counts["ultra_instinct"] != 0 {
-		t.Fatalf("slow rolls produced ultra_instinct %d times, want 0", counts["ultra_instinct"])
+	if counts["critical_hit"] != 0 {
+		t.Fatalf("slow rolls produced critical_hit %d times, want 0", counts["critical_hit"])
 	}
-	if counts["elder_kai"] == 0 {
-		t.Fatalf("expected elder_kai to occur among slow rolls, got %v", counts)
+	if counts["slowpoke"] == 0 {
+		t.Fatalf("expected slowpoke to occur among slow rolls, got %v", counts)
 	}
 }

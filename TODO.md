@@ -24,7 +24,7 @@ V1 (the dial) is designed and prompted — see Done and
 build-prompts/feature-screen-time.md. Deliberately left out of v1:
 
 - **Richer earning rules**: bonus minutes for daily-challenge completion,
-  streaks, or random events (a Kaio-ken that doubles minutes too?). One
+  streaks, or random events (a Lucky Egg that doubles minutes too?). One
   flat per-correct rate for now; revisit once the family has lived with
   the deal for a while.
 - **In-app time limits**: parent-configurable caps on this app's own play
@@ -49,29 +49,31 @@ build-prompts/feature-screen-time.md. Deliberately left out of v1:
 
 The engine (build-prompts/feature-random-events.md) is a weighted registry;
 each new banner-style XP event is one struct literal, zero PWA work. Ideas
-for after Kaio-ken ×2 ships:
+for after Lucky Egg ×2 ships:
 
-- **Kaio-ken ×3 / ×4** — rarer, bigger multipliers (weight them low; the
+- **Lucky Egg ×3 / ×4** — rarer, bigger multipliers (weight them low; the
   escalation is canon).
-- **Senzu Bean** — fires on a *wrong* answer occasionally instead: the miss
-  doesn't break the streak ("the senzu bean saved you!"). Needs a small
-  engine extension (events on incorrect answers, non-XP effect).
-- **Hercule photobomb** — pure comedy, no mechanical effect, just a gag
-  overlay ("MR. SATAN claims credit for that answer!"). Cheap, and comic
-  relief events make the real ones feel bigger.
-- **Dragon radar blip** — grants progress toward a dragon ball or reveals a
+- **Full Restore** — fires on a *wrong* answer occasionally instead: the
+  miss doesn't break the streak ("Full Restore! Your streak is safe!").
+  Needs a small engine extension (events on incorrect answers, non-XP
+  effect).
+- **Team Rocket blast-off** — pure comedy, no mechanical effect, just a gag
+  overlay ("TEAM ROCKET'S BLASTING OFF AGAIN!"). Cheap, and comic relief
+  events make the real ones feel bigger.
+- **Poké Radar blip** — grants progress toward a gym badge or reveals a
   hint about the next unlock. Needs unlock-engine integration.
-- **Instant Transmission** — skip straight to the next level-up celebration
-  if he's within N XP (top off the window). Flashy but touches the adaptive
+- **Teleport** — skip straight to the next level-up celebration if he's
+  within N XP (top off the window). Flashy but touches the adaptive
   ladder — design carefully or skip.
-- **Vegeta's wager** — "I bet you can't get the NEXT one right in under
+- **Rival's challenge** — "Bet you can't get the NEXT one right in under
   10 seconds." Beat it → ×4 and a grudging "…not bad."; miss → nothing
   lost. Needs a pending-challenge state the engine remembers for one
   attempt; the did-he-rise-to-it data is scorecard gold.
-- **Spirit Bomb charge** — the next 3 correct answers each "lend energy,"
-  then the bomb releases their combined XP again as a bonus. A mini-arc
-  instead of a moment; same pending-state machinery as the wager.
-- **Hyperbolic Time Chamber** — all XP ×2 for the next 60 seconds with a
+- **Z-Move charge-up** — the next 3 correct answers each "charge the
+  move," then it unleashes their combined XP again as a bonus. A mini-arc
+  instead of a moment; same pending-state machinery as the rival's
+  challenge.
+- **Exp. Share surge** — all XP ×2 for the next 60 seconds with a
   countdown aura. Most gameplay-warping (timed buff state, session pacing);
   build last.
 
@@ -81,21 +83,23 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
 
 ### New game modes (reuse existing generators + scoring)
 
-- **Boss battles.** A villain with an HP bar; correct answers land hits
-  (damage scaled by XP earned, so speed/streak matter), wrong answers mean
-  the boss hits back. Beat him before your own HP runs out. Pure
-  presentation over the existing attempt loop — no new question machinery —
-  and the highest-energy way to reuse saga villains. Could gate saga chapter
-  completion ("defeat Frieza") instead of the current bare counter.
-- **Kamehameha sprint.** 60-second blitz: as many facts as possible in one
-  skill, vs his own best score. Fact fluency is the one place raw speed
-  drilling genuinely helps, and "beat your own record" is self-renewing
-  content at zero content cost.
-- **Fusion questions.** Two skills fused into one question (multiplication
-  inside a fraction-of-a-quantity, place value inside addsub chains) with a
-  fusion-dance reveal and bonus XP. Template generators can compose; also a
-  natural AI-batch kind. Good stretch material for when single skills get
-  easy.
+- **Gym Leader battles.** A Gym Leader (Brock, Misty, Erika, Koga, Blaine —
+  matching the Pewter/Cerulean/Celadon/Fuchsia/Cinnabar arcs) with an HP
+  bar; correct answers land hits (damage scaled by XP earned, so
+  speed/streak matter), wrong answers mean the Gym Leader hits back. Beat
+  them before your own HP runs out. Pure presentation over the existing
+  attempt loop — no new question machinery — and the highest-energy way to
+  reuse the arc bosses. Could gate arc chapter completion ("defeat Brock")
+  instead of the current bare counter.
+- **Quick Attack sprint.** 60-second blitz: as many facts as possible in
+  one skill, vs his own best score. Fact fluency is the one place raw
+  speed drilling genuinely helps, and "beat your own record" is
+  self-renewing content at zero content cost.
+- **Evolution questions.** Two skills fused into one question
+  (multiplication inside a fraction-of-a-quantity, place value inside
+  addsub chains) with an evolution-flash reveal and bonus XP. Template
+  generators can compose; also a natural AI-batch kind. Good stretch
+  material for when single skills get easy.
 - **Legendary problem of the week.** One very hard, optional problem (2–3
   levels above his current ladder), big reward, one attempt, resets weekly.
   Cheap to build on the daily-challenge plumbing and gives the "gifted kid
@@ -107,9 +111,10 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
 - **Redemption queue (spaced repetition on misses).** Missed questions come
   back for another shot after 1 day, then 3, then 7 (deterministic
   SM-2-lite; integer day intervals; clear on two consecutive correct).
-  Attempts already store everything needed. Frame it as DBZ canon: "a Saiyan
-  gets stronger from every defeat" — retrying old misses pays zenkai-style
-  bonus XP. Probably the single highest-learning-value item on this list.
+  Attempts already store everything needed. Frame it as a training montage:
+  a trainer who studies a loss comes back stronger — retrying old misses
+  pays comeback-style bonus XP. Probably the single highest-learning-value
+  item on this list.
 - **Misconception tagging.** Classify wrong answers deterministically where
   the error is recognizable — forgot the carry, remainder off by one,
   compared numerators instead of cross-multiplying, off-by-one-term in a
@@ -117,9 +122,9 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
   answers are diagnosable at grade time. Surface patterns in `#/parents`
   ("8 of his last 10 subtraction misses are borrow errors") — that's the
   scorecard becoming actionable instead of just descriptive.
-- **Hints from Master Roshi.** Optional hint button that costs XP (so it's a
-  tradeoff, not a crutch): first hint = strategy nudge, second = first step
-  worked. Pre-generate hint text at AI-batch time for AI questions;
+- **Hints from Professor Oak.** Optional hint button that costs XP (so it's
+  a tradeoff, not a crutch): first hint = strategy nudge, second = first
+  step worked. Pre-generate hint text at AI-batch time for AI questions;
   template skills can derive hints from the generator's own working.
   Record hint usage on attempts — it's great signal for the scorecard and
   future difficulty tuning.
@@ -137,7 +142,7 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
   or his own future dailies. Writing a good problem is harder than solving
   one — perfect for a voracious reader, and it's the app's first
   creative/authorship loop.
-- **Sensei chat in `#/parents`.** Natural-language questions over the
+- **Professor chat in `#/parents`.** Natural-language questions over the
   attempt data ("what should we practice this week?", "is he actually
   faster at division than last month?") via a small read-only tool loop —
   copy `~/projects/finance/internal/finance/assistant.go` wholesale; the
@@ -162,10 +167,10 @@ Grouped, roughly ordered by bang-for-buck within each group. None scoped.
   count, and a custom reward line ("beat this and we get ice cream") → it
   appears on Home as a special mission. Reuses quest plumbing; gives
   parents a lever between "nothing" and the parked screen-time ledger.
-- **Super Saiyan transformations.** At major power-level thresholds his
-  avatar/aura on Home transforms (base → SSJ → SSJ2 …) and the home-screen
-  ambience shifts. The power-level number already animates; this gives the
-  grind a visible identity payoff between fighter unlocks.
+- **Evolution transformations.** At major XP thresholds his trainer
+  avatar/aura on Home evolves (base → evolved → mega …) and the
+  home-screen ambience shifts. The XP number already animates; this gives
+  the grind a visible identity payoff between Pokédex unlocks.
 
 ### Platform & infra
 
@@ -196,8 +201,8 @@ any answer, with per-clip correct/wrong tags. The condition model is built
 to carry more triggers Jim mentioned adding later — wire these into the same
 clip-eligibility model rather than new systems:
 
-- **Milestone triggers**: play a specific clip on a level-up, a power-level
-  threshold, a fighter unlock, a daily-challenge completion, or a saga
+- **Milestone triggers**: play a specific clip on a level-up, an XP
+  threshold, a Pokémon unlock, a daily-challenge completion, or a gym-arc
   chapter beaten. Needs a `trigger`/condition field on `clips` richer than
   the current two booleans (e.g. a tag set), plus firing hooks at those
   moments (the unlock/level-up sites already exist in the service).
@@ -211,6 +216,13 @@ clip-eligibility model rather than new systems:
 
 ## Done
 
+- **Pokémon retheme** — prompt written 2026-07-14
+  (build-prompts/retheme-pokemon.md). Full reskin DBZ → Pokémon (Skyler
+  doesn't know DBZ): fighters→Pokédex, 7 dragon balls→8 gym badges,
+  Shenron wish→Master Ball catch, sagas→gym arcs, events reflavored
+  (Kaio-ken→Lucky Egg, etc.), power level→XP, zenkai→comeback, ki-gauge→
+  Poké Ball meter. Reskin only — all math/thresholds/probabilities
+  preserved (sole mechanic change: 7→8 collectibles).
 - **Screen-time daily auto-reset** — prompt written 2026-07-14
   (build-prompts/feature-screentime-daily-reset.md). Dial auto-resets to 0
   on first app use each local day (a `reason='daily'` reset row); manual

@@ -252,51 +252,51 @@ func (d *DB) DeleteUnlocks(ctx context.Context, kind string, refs []string) erro
 	return nil
 }
 
-// Wish runs the whole grant in one transaction so a dragon-ball count check
-// can never race against a concurrent wish leaving balls consumed without a
-// fighter granted (or vice versa) -- mirrors ~/projects/food's internal/db
+// Catch runs the whole grant in one transaction so a gym-badge count check
+// can never race against a concurrent catch leaving badges consumed without
+// a Pokémon granted (or vice versa) -- mirrors ~/projects/food's internal/db
 // pattern of wrapping a single conceptual operation in pool.Begin.
-func (d *DB) Wish(ctx context.Context, fighterRef, bonusSkill string, bonusXP int64) (ballCount int, alreadyUnlocked bool, err error) {
+func (d *DB) Catch(ctx context.Context, pokemonRef, bonusSkill string, bonusXP int64) (badgeCount int, alreadyUnlocked bool, err error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
-		return 0, false, fmt.Errorf("begin wish tx: %w", err)
+		return 0, false, fmt.Errorf("begin catch tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM unlocks WHERE kind = 'dragon_ball'`).Scan(&ballCount); err != nil {
-		return 0, false, fmt.Errorf("count dragon balls: %w", err)
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM unlocks WHERE kind = 'gym_badge'`).Scan(&badgeCount); err != nil {
+		return 0, false, fmt.Errorf("count gym badges: %w", err)
 	}
-	if ballCount != 7 {
-		return ballCount, false, nil
+	if badgeCount != 8 {
+		return badgeCount, false, nil
 	}
 
 	if err := tx.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM unlocks WHERE kind = 'fighter' AND ref = $1)`, fighterRef).
+		`SELECT EXISTS(SELECT 1 FROM unlocks WHERE kind = 'pokemon' AND ref = $1)`, pokemonRef).
 		Scan(&alreadyUnlocked); err != nil {
-		return ballCount, false, fmt.Errorf("check fighter unlock: %w", err)
+		return badgeCount, false, fmt.Errorf("check pokemon unlock: %w", err)
 	}
 	if alreadyUnlocked {
-		return ballCount, true, nil
+		return badgeCount, true, nil
 	}
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO unlocks (kind, ref, source) VALUES ('fighter', $1, 'wish')`, fighterRef); err != nil {
-		return ballCount, false, fmt.Errorf("insert wish fighter: %w", err)
+		`INSERT INTO unlocks (kind, ref, source) VALUES ('pokemon', $1, 'catch')`, pokemonRef); err != nil {
+		return badgeCount, false, fmt.Errorf("insert catch pokemon: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM unlocks WHERE kind = 'dragon_ball'`); err != nil {
-		return ballCount, false, fmt.Errorf("delete dragon balls: %w", err)
+	if _, err := tx.Exec(ctx, `DELETE FROM unlocks WHERE kind = 'gym_badge'`); err != nil {
+		return badgeCount, false, fmt.Errorf("delete gym badges: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO skill_state (skill, xp) VALUES ($1, $2)
 		ON CONFLICT (skill) DO UPDATE SET xp = skill_state.xp + EXCLUDED.xp, updated_at = NOW()`,
 		bonusSkill, bonusXP); err != nil {
-		return ballCount, false, fmt.Errorf("credit wish xp: %w", err)
+		return badgeCount, false, fmt.Errorf("credit catch xp: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return ballCount, false, fmt.Errorf("commit wish: %w", err)
+		return badgeCount, false, fmt.Errorf("commit catch: %w", err)
 	}
-	return ballCount, false, nil
+	return badgeCount, false, nil
 }
 
 // ---- quests ----

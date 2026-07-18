@@ -1,7 +1,7 @@
 // Network-first for the app shell (so deploys show up on the next reload, no
 // version bump needed), cache fallback for offline. Network-only for /api.
 // CACHE only needs bumping if the caching strategy itself changes.
-const CACHE = 'mathgames-v1';
+const CACHE = 'mathgames-pokemon-v1';
 const SHELL = ['/', '/manifest.json'];
 
 self.addEventListener('install', (e) => {

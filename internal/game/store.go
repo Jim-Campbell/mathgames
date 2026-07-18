@@ -67,16 +67,16 @@ type Store interface {
 	// false when the row already existed, so the caller doesn't report a
 	// duplicate as "new".
 	InsertUnlock(ctx context.Context, u *Unlock) (inserted bool, err error)
-	// DeleteUnlocks consumes unlocks (e.g. the 7 dragon balls on a wish).
+	// DeleteUnlocks consumes unlocks (e.g. the 8 gym badges on a catch).
 	DeleteUnlocks(ctx context.Context, kind string, refs []string) error
 
-	// Wish atomically grants fighterRef in exchange for the 7 dragon-ball
-	// unlocks and credits bonusXP to skill_state row bonusSkill, all in one
-	// transaction (count check, insert, delete, credit). ballCount is the
-	// number of dragon_ball unlocks found; when it isn't 7, nothing else
-	// happens. alreadyUnlocked is true when fighterRef was already unlocked
-	// (also a no-op beyond the count check).
-	Wish(ctx context.Context, fighterRef, bonusSkill string, bonusXP int64) (ballCount int, alreadyUnlocked bool, err error)
+	// Catch atomically grants pokemonRef in exchange for the 8 gym-badge
+	// unlocks (the Master Ball) and credits bonusXP to skill_state row
+	// bonusSkill, all in one transaction (count check, insert, delete,
+	// credit). badgeCount is the number of gym_badge unlocks found; when it
+	// isn't 8, nothing else happens. alreadyUnlocked is true when
+	// pokemonRef was already unlocked (also a no-op beyond the count check).
+	Catch(ctx context.Context, pokemonRef, bonusSkill string, bonusXP int64) (badgeCount int, alreadyUnlocked bool, err error)
 
 	// ---- quests ----
 

@@ -15,7 +15,7 @@ import (
 )
 
 // GameHandler serves the full API surface: sessions, serving, attempts,
-// daily, profile, collection, wish, quests, parents, settings, export
+// daily, profile, collection, catch, quests, parents, settings, export
 // (phase 3), plus AI generation and question-review (phase 4). aiGen is nil
 // when ANTHROPIC_API_KEY isn't configured; generate returns 503 in that case.
 type GameHandler struct {
@@ -39,7 +39,7 @@ func (h *GameHandler) Routes(r chi.Router) {
 
 	r.Get("/profile", h.profile)
 	r.Get("/collection", h.collection)
-	r.Post("/wish", h.wish)
+	r.Post("/catch", h.catch)
 
 	r.Get("/quests", h.quests)
 	r.Get("/quests/{id}", h.questChapter)
@@ -218,7 +218,7 @@ func toQuestionsOutOmitEmpty(qs []game.Question) []questionOut {
 	return toQuestionsOut(qs)
 }
 
-// ---- profile / collection / wish ----
+// ---- profile / collection / catch ----
 
 func (h *GameHandler) profile(w http.ResponseWriter, r *http.Request) {
 	p, err := h.svc.Profile(r.Context())
@@ -238,17 +238,17 @@ func (h *GameHandler) collection(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, c)
 }
 
-func (h *GameHandler) wish(w http.ResponseWriter, r *http.Request) {
+func (h *GameHandler) catch(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Fighter string `json:"fighter"`
+		Pokemon string `json:"pokemon"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
-	u, err := h.svc.Wish(r.Context(), body.Fighter)
+	u, err := h.svc.Catch(r.Context(), body.Pokemon)
 	if err != nil {
-		h.fail(w, "wish", err)
+		h.fail(w, "catch", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, u)

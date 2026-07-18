@@ -7,11 +7,12 @@ device: **iPad** (installed PWA). Single user. Sibling app to
 stack, same patterns, same bearer-key auth. Read those repos' conventions
 before inventing anything.
 
-The theme is **Dragon Ball Z**: answering problems is "training", XP drives a
-**power level**, milestones unlock a collection of fighters, story quests are
-"sagas", and collecting seven dragon balls summons Shenron for a wish. This is
-a private, non-commercial family app; all artwork is **original inline SVG**
-(stylized, not copied) — names and lore references are used playfully.
+The theme is **Pokémon**: answering problems is "training", XP drives a
+**Trainer XP** total, milestones unlock a Pokédex collection, story quests are
+gym arcs, and collecting all eight gym badges earns the Master Ball for a
+catch. This is a private, non-commercial family app; all artwork is
+**original inline SVG** (stylized, not copied) — names and lore references
+are used playfully.
 
 Design goals, in order:
 
@@ -22,12 +23,12 @@ Design goals, in order:
 3. **Rich raw data** — every attempt with timings and wrong answers is kept
    forever so Jim + Claude can co-design new games and a parent scorecard can
    be honest.
-4. **Extensible** — new skills, fighters, sagas, and game modes bolt on
+4. **Extensible** — new skills, Pokémon, gym arcs, and game modes bolt on
    without schema surgery.
 
 **Screen time.** Correct answers (any mode — training, quest, daily) fill a
-ki-gauge dial on Home: `minutes_per_correct` (a settings knob, default 3)
-per correct, capped at 60. The dial is **derived, never stored** — it's
+Poké Ball energy meter on Home: `minutes_per_correct` (a settings knob,
+default 3) per correct, capped at 60. The dial is **derived, never stored** — it's
 `(count of correct attempts since the last reset) × minutes_per_correct`,
 capped, computed from `attempts` rows on demand. A parent resets it from the
 parents view once the time is spent, snapshotting a `screen_time_resets`
@@ -91,7 +92,7 @@ GET  /api/screentime/log         → resets, newest first, each with reason + da
 
 ## Domain invariants (do not break)
 
-- **No floats in stored data or scoring math.** XP, power level, streaks,
+- **No floats in stored data or scoring math.** XP, total XP, streaks,
   levels: integers. Times: integer **milliseconds**. Accuracy anywhere it's
   stored or computed: integer **basis points** (8750 = 87.50%). Multiply
   before dividing.
@@ -180,7 +181,7 @@ CREATE TABLE skill_state (
     level          INT NOT NULL DEFAULT 1 CHECK (level BETWEEN 1 AND 10),
     xp             BIGINT NOT NULL DEFAULT 0,     -- lifetime XP earned in this skill
     streak         INT NOT NULL DEFAULT 0,        -- current consecutive-correct streak
-    wrong_run      INT NOT NULL DEFAULT 0,        -- current consecutive-wrong run (zenkai)
+    wrong_run      INT NOT NULL DEFAULT 0,        -- current consecutive-wrong run (comeback)
     window_total   INT NOT NULL DEFAULT 0,        -- attempts in current adaptive window
     window_correct INT NOT NULL DEFAULT 0,
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -229,21 +230,21 @@ CREATE INDEX attempts_session_idx ON attempts(session_id);
 
 CREATE TABLE unlocks (
     id         BIGSERIAL PRIMARY KEY,
-    kind       TEXT NOT NULL CHECK (kind IN ('fighter','dragon_ball','badge')),
-    ref        TEXT NOT NULL,            -- fighter slug, ball number '1'..'7', badge slug
-    source     TEXT NOT NULL DEFAULT '', -- human-readable: 'power_level 9000', 'saga saiyan ch3', 'wish'
+    kind       TEXT NOT NULL CHECK (kind IN ('pokemon','gym_badge','ribbon')),
+    ref        TEXT NOT NULL,            -- pokemon slug, badge number '1'..'8', ribbon slug
+    source     TEXT NOT NULL DEFAULT '', -- human-readable: 'xp 9001', 'saga cerulean ch4', 'catch'
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (kind, ref)
 );
 
 CREATE TABLE quest_chapters (
     id           BIGSERIAL PRIMARY KEY,
-    saga         TEXT NOT NULL,          -- 'saiyan','namek','android','cell','buu' (in order)
-    chapter      INT NOT NULL,           -- 1..N within the saga
+    saga         TEXT NOT NULL,          -- 'pewter','cerulean','celadon','fuchsia','cinnabar' (in order)
+    chapter      INT NOT NULL,           -- 1..N within the arc
     title        TEXT NOT NULL,
     story        TEXT NOT NULL,          -- AI-generated narrative shown on open
     requirement  JSONB NOT NULL,         -- {"correct": 12, "skills": ["multiplication","fractions"], "min_difficulty": 3}
-    reward       JSONB NOT NULL,         -- {"xp": 500, "fighter": "vegeta", "dragon_ball": 2}  (any subset)
+    reward       JSONB NOT NULL,         -- {"xp": 500, "pokemon": "onix", "gym_badge": 2}  (any subset)
     progress     INT NOT NULL DEFAULT 0, -- correct answers counted toward requirement
     completed_at TIMESTAMPTZ,
     ai_batch_id  BIGINT,
@@ -338,7 +339,7 @@ All integer math, multiply before dividing:
 - **Streak multiplier** (applied after speed, on the running
   consecutive-correct streak *including* this answer): streak ≥ 11 → ×150/100;
   ≥ 6 → ×125/100; ≥ 3 → ×110/100; else ×100/100.
-- **Zenkai boost** (DBZ: Saiyans come back stronger from defeat): if this
+- **Comeback boost** (a Pokémon digging deep after a rough patch): if this
   correct answer follows a run of ≥ 3 consecutive wrong answers in the same
   skill, double the final XP. (`wrong_run` in `skill_state` tracks the run.)
 - **Wrong answer** = 1 XP (showing up counts), streak resets to 0,
@@ -346,14 +347,15 @@ All integer math, multiply before dividing:
 - **Daily challenge**: all XP ×2; a perfect day (all correct) adds +100.
 
 Worked example (hand-check in `score_test.go`): difficulty 4 multiplication,
-answered correctly in 9.2 s with streak reaching 7, no zenkai. Base
+answered correctly in 9.2 s with streak reaching 7, no comeback. Base
 `10×4 = 40`; `fast_ms = 13000` so 9200 ≤ fast → `40×150/100 = 60`; streak 7 →
 `60×125/100 = 75`. **75 XP.** Same answer arriving after 3 straight misses:
 `75×2 = 150`.
 
-**Power level** = `100 + total lifetime XP` (sum across skills). It only goes
-up. The PWA celebrates threshold crossings; **9000** gets the big one
-("IT'S OVER 9000!" full-screen moment).
+**Trainer XP** = `100 + total lifetime XP` (sum across skills). It only goes
+up. The PWA celebrates threshold crossings; **9001** gets the big one (a
+one-time legendary/evolution full-screen moment — the Charizard slot in the
+Pokédex).
 
 ### Random events
 
@@ -368,10 +370,10 @@ a given attempt.
 
 | slug | weight | effect | condition |
 | --- | --- | --- | --- |
-| `kaioken` | 4 | ×2 | none |
-| `capsule` | 3 | +100 XP flat | none |
-| `elder_kai` | 2 | ×2 | `elapsedMS > okMS(difficulty)` (slow) |
-| `ultra_instinct` | 2 | ×3 | `elapsedMS <= fastMS(difficulty)` (fast) |
+| `lucky_egg` | 4 | ×2 | none |
+| `rare_candy` | 3 | +100 XP flat | none |
+| `slowpoke` | 2 | ×2 | `elapsedMS > okMS(difficulty)` (slow) |
+| `critical_hit` | 2 | ×3 | `elapsedMS <= fastMS(difficulty)` (fast) |
 
 `RollEvent(rng, attemptsSinceLast, elapsedMS, difficulty)` fires with
 probability **1 in 25** (`eventChance = 25`) and never fires within **10
@@ -380,13 +382,13 @@ attempts** (correct or wrong) of the last attempt that fired one
 `Store.AttemptsSinceLastEvent`). Once it decides to fire, the weighted pick
 walks only the events whose `Eligible` predicate (if any) allows the
 attempt's `elapsedMS`/`difficulty` — ineligible events are excluded from
-the weighted pick entirely, so a fast answer can never roll `elder_kai` and
-a slow one can never roll `ultra_instinct`; if no event is eligible,
+the weighted pick entirely, so a fast answer can never roll `slowpoke` and
+a slow one can never roll `critical_hit`; if no event is eligible,
 nothing fires. The multiplier/flat bonus applies **last** — after speed,
-streak, zenkai, and the daily ×2 are already baked into `Score()`'s
-result — so a daily kaio-ken answer stacks intentionally:
+streak, comeback, and the daily ×2 are already baked into `Score()`'s
+result — so a daily lucky-egg answer stacks intentionally:
 `(base×speed×streak×2 daily)×2 event`. The resulting XP then flows through
-skill state, the attempt row, daily progress, and power level with no
+skill state, the attempt row, daily progress, and total XP with no
 further special-casing.
 
 `attempts.event` (migration 003) is a nullable TEXT column holding the slug
@@ -440,39 +442,39 @@ needs for the moment of feedback:
 ```json
 {
   "correct": true, "answer": {"value": 918}, "explanation": "27×34 = 27×30 + 27×4 = 810 + 108",
-  "xp_earned": 75, "zenkai": false,
+  "xp_earned": 75, "comeback": false,
   "streak": 7, "skill_level": 4, "level_changed": 0,
-  "power_level": 9120, "power_level_before": 9045,
-  "unlocks": [{"kind":"fighter","ref":"vegeta","name":"Vegeta","rarity":"epic"}]
+  "xp": 9120, "xp_before": 9045,
+  "unlocks": [{"kind":"pokemon","ref":"gengar","name":"Gengar","rarity":"epic"}]
 }
 ```
 
 ## Collection, quests, daily
 
-**Fighters** (`internal/game/fighters.go`, code-defined catalog — DB stores
-only unlocks). ~20 fighters with slug, name, rarity
+**Pokédex** (`internal/game/pokedex.go`, code-defined catalog — DB stores
+only unlocks). ~23 Pokémon with slug, name, rarity
 (`common/rare/epic/legendary`), an original inline-SVG portrait (drawn in the
-PWA phase; stylized silhouettes + auras, not copied art), and an unlock
+PWA phase; stylized silhouettes + type-glow, not copied art), and an unlock
 condition. Unlock sources:
 
-- **Power-level thresholds** (Krillin 500, Yamcha 1,000, Tien 2,000, Piccolo
-  4,000, Goku 9,001 — over 9000, Gohan 15,000, Vegeta 25,000, …, Beerus
-  250,000). Exact table lives in the Go catalog.
-- **Saga chapter rewards** (villains join when their saga is beaten: Frieza,
-  Cell, Majin Buu…).
-- **Streak badges** (daily-challenge calendar streaks: 3, 7, 14, 30 days).
-- **Shenron wishes**: earning all 7 dragon balls lets him summon Shenron
-  (`POST /api/wish` with a chosen locked fighter slug) — grants any fighter
-  regardless of condition, +1000 XP, and consumes the balls (deletes the 7
-  `dragon_ball` unlock rows; they can be earned again).
+- **XP thresholds** (Pidgey 500, Rattata 1,000, Caterpie 2,000, Eevee 3,000,
+  Growlithe 4,000, Charizard 9,001 — the signature moment, Psyduck 12,000,
+  Gyarados 15,000, …, Mewtwo 250,000). Exact table lives in the Go catalog.
+- **Gym-arc chapter rewards** (strong Pokémon join when their arc is beaten:
+  Onix, Alakazam, Lapras…).
+- **Streak ribbons** (daily-challenge calendar streaks: 3, 7, 14, 30 days).
+- **Master Ball catches**: earning all 8 gym badges lets him use the Master
+  Ball (`POST /api/catch` with a chosen locked Pokémon slug) — grants any
+  Pokémon regardless of condition, +1000 XP, and consumes the badges
+  (deletes the 8 `gym_badge` unlock rows; they can be earned again).
 
-**Quests** — 5 sagas × 4 chapters, seeded in migration 002 with placeholder
-titles/requirements; story text is AI-generated (`kind='story'` batches
-rewrite `quest_chapters.story`). A chapter's `requirement` counts correct
-answers in `quest` sessions at `min_difficulty`+ in the listed skills;
-progress updates on every qualifying attempt; completion grants the reward
-and unlocks the next chapter. Chapters must be done in order within a saga;
-sagas unlock in order.
+**Quests** — 5 gym arcs × 4 chapters, seeded in migration 007 with
+placeholder titles/requirements; story text is AI-generated (`kind='story'`
+batches rewrite `quest_chapters.story`). A chapter's `requirement` counts
+correct answers in `quest` sessions at `min_difficulty`+ in the listed
+skills; progress updates on every qualifying attempt; completion grants the
+reward and unlocks the next chapter. Chapters must be done in order within
+an arc; arcs unlock in order.
 
 **Daily challenge** — one set per calendar day (device-local date sent by the
 PWA as `?day=`), `settings.daily_count` questions (default 5): one from each
@@ -507,13 +509,13 @@ GET    /api/daily?day=YYYY-MM-DD  → {day, questions|results, answered, correct
                                      completed, streak, calendar:[...last 30 days...]}
        (daily answers go through POST /api/attempts with the daily session)
 
-GET    /api/profile               → {power_level, xp_by_skill, levels, streaks,
-                                     fighters_unlocked, fighters_total,
-                                     dragon_balls:[1,3,4], daily_streak}
+GET    /api/profile               → {xp, xp_by_skill, levels, streaks,
+                                     pokemon_unlocked, pokemon_total,
+                                     gym_badges:[1,3,4], daily_streak}
 GET    /api/collection            → full catalog + unlocked flags + how-to-unlock hints
-POST   /api/wish                  {fighter}                     → unlock result (409 unless 7 balls)
+POST   /api/catch                 {pokemon}                     → unlock result (409 unless 8 badges)
 
-GET    /api/quests                → sagas → chapters with progress/completion/locks
+GET    /api/quests                → gym arcs → chapters with progress/completion/locks
 GET    /api/quests/{id}           → chapter detail incl. story text
 
 GET    /api/parents/summary?days=30
@@ -654,48 +656,48 @@ big touch targets (min 64px), on-screen **custom number pad** for numeric
 answers (never the iOS keyboard — it covers half the screen and breaks the
 flow). Service worker **network-first for the shell** with cache fallback,
 network-only for `/api` (copy food's `sw.js`). Manifest: landscape-friendly,
-`display: standalone`, DBZ-orange theme color, original SVG icon (four-star
-dragon ball). API key in localStorage with a first-run prompt.
+`display: standalone`, Poké Ball red (`#EE1515`) theme color, original SVG
+icon (a Poké Ball). API key in localStorage with a first-run prompt.
 
 **Sound** (`sfx` module): **Web Audio API synthesis only — no audio files**
 (keeps the single-file convention; base64 audio would bloat it). Oscillator +
 gain-envelope recipes: correct = rising two-note chime; wrong = soft low
-thud (never harsh); streak-milestone = ki-charge rising sweep; level-up =
-fanfare arpeggio; unlock = gong + shimmer; over-9000 = the works. Master
-mute toggle persisted in localStorage. iOS unlocks audio on first user
-gesture — resume the AudioContext in the first tap handler.
+thud (never harsh); streak-milestone = rising energy sweep; level-up =
+fanfare arpeggio; unlock = gong + shimmer; legendary/evolution moment = the
+works. Master mute toggle persisted in localStorage. iOS unlocks audio on
+first user gesture — resume the AudioContext in the first tap handler.
 
 **Animation**: CSS transforms/keyframes + inline SVG. Streak ≥ 3 shows a
-flame aura around the streak counter that intensifies at 6 and 11; correct
-answers burst a small energy particle effect; power-level number always
-animates count-up on change; unlocks play a full-screen card-reveal
-(silhouette → flash → fighter portrait). Respect `prefers-reduced-motion`.
+glowing aura around the streak counter that intensifies at 6 and 11; correct
+answers burst a small energy particle effect; the XP number always animates
+count-up on change; unlocks play a full-screen card-reveal (silhouette →
+flash → Pokémon portrait). Respect `prefers-reduced-motion`.
 
 Screens:
 
-- **Home.** Power level front and center (big animated number + aura),
+- **Home.** Trainer XP front and center (big animated number + aura),
   today's daily-challenge card (state: not started / in progress / results
   grid + streak), TRAIN button (starts a mixed training session), per-skill
   level chips (tap → train just that skill), recent unlocks strip.
 - **Play (session).** One question at a time, huge type. Number pad /
   choice buttons / fraction inputs per `kind`; `display` hints render as SVG
   (fraction bars, sequences, grids). Immediate feedback: correct → green
-  flash, XP flyup (+75 ⚡), sound, streak flame; wrong → gentle shake, the
+  flash, XP flyup (+75 ⚡), sound, streak glow; wrong → gentle shake, the
   correct answer **with the explanation shown** (this is the teaching
   moment — make it readable, not skippable-in-100ms). Session header: streak
-  flame, XP earned this session, end-session ✕. End screen: totals, best
+  glow, XP earned this session, end-session ✕. End screen: totals, best
   streak, any unlocks, "train again".
 - **Daily.** Entered from the Home card. Same play UI, `daily_count`
   questions, one shot each, timer visible; end screen is the Wordle-style
   grid (🟩🟥 per question + total time) and the calendar streak view.
-- **Collection.** Grid of fighter cards — unlocked in full color with
-  rarity border and power-level-at-unlock; locked as silhouettes with hint
-  text ("Reach power level 25,000"). Dragon-ball tray (1–7, earned ones
-  glowing); with all 7 a SUMMON SHENRON button → wish flow (pick any locked
-  fighter, dragon animation, balls scatter).
-- **Quests.** Saga list (locked sagas greyed with unlock order); saga →
+- **Collection.** Grid of Pokémon cards — unlocked in full color with
+  rarity border and XP-at-unlock; locked as silhouettes with hint text
+  ("Reach 25,000 XP"). Gym badge case (1–8, earned ones glowing); with all
+  8 a USE MASTER BALL button → catch flow (pick any locked Pokémon, catch
+  animation, badges scatter).
+- **Quests.** Gym arc list (locked arcs greyed with unlock order); arc →
   chapter cards with progress bars; opening a chapter shows the story text,
-  then FIGHT starts a quest session serving the chapter's skills at
+  then TRAIN starts a quest session serving the chapter's skills at
   `min_difficulty`+; completion → reward reveal.
 - **Parents (`#/parents`, hidden).** Per-day activity chart (attempts,
   accuracy, minutes — inline SVG, finance conventions), per-skill table

@@ -12,15 +12,15 @@ import (
 
 // Profile is the response shape for GET /api/profile.
 type Profile struct {
-	PowerLevel       int64            `json:"power_level"`
-	XPBySkill        map[string]int64 `json:"xp_by_skill"`
-	Levels           map[string]int   `json:"levels"`
-	Streaks          map[string]int   `json:"streaks"`
-	FightersUnlocked int              `json:"fighters_unlocked"`
-	FightersTotal    int              `json:"fighters_total"`
-	DragonBalls      []int            `json:"dragon_balls"`
-	DailyStreak      int              `json:"daily_streak"`
-	Days             []DayCount       `json:"days"` // per-day answer tally, last 30 days, for the Home activity bar
+	XP              int64            `json:"xp"`
+	XPBySkill       map[string]int64 `json:"xp_by_skill"`
+	Levels          map[string]int   `json:"levels"`
+	Streaks         map[string]int   `json:"streaks"`
+	PokemonUnlocked int              `json:"pokemon_unlocked"`
+	PokemonTotal    int              `json:"pokemon_total"`
+	GymBadges       []int            `json:"gym_badges"`
+	DailyStreak     int              `json:"daily_streak"`
+	Days            []DayCount       `json:"days"` // per-day answer tally, last 30 days, for the Home activity bar
 }
 
 // DayCount is one calendar day's correct/wrong answer tally across all
@@ -68,10 +68,10 @@ func (s *Service) Profile(ctx context.Context) (*Profile, error) {
 	}
 
 	p := &Profile{
-		PowerLevel: powerLevel(states),
-		XPBySkill:  map[string]int64{},
-		Levels:     map[string]int{},
-		Streaks:    map[string]int{},
+		XP:        totalXP(states),
+		XPBySkill: map[string]int64{},
+		Levels:    map[string]int{},
+		Streaks:   map[string]int{},
 	}
 	for _, sk := range Skills {
 		st, ok := bySkill[sk.Slug]
@@ -87,18 +87,18 @@ func (s *Service) Profile(ctx context.Context) (*Profile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list unlocks: %w", err)
 	}
-	p.FightersTotal = len(Fighters)
+	p.PokemonTotal = len(Pokedex)
 	for _, u := range unlocks {
 		switch u.Kind {
-		case UnlockFighter:
-			p.FightersUnlocked++
-		case UnlockDragonBall:
+		case UnlockPokemon:
+			p.PokemonUnlocked++
+		case UnlockGymBadge:
 			if n, err := strconv.Atoi(u.Ref); err == nil {
-				p.DragonBalls = append(p.DragonBalls, n)
+				p.GymBadges = append(p.GymBadges, n)
 			}
 		}
 	}
-	sort.Ints(p.DragonBalls)
+	sort.Ints(p.GymBadges)
 
 	results, err := s.store.ListDailyResults(ctx, time.Now().AddDate(0, 0, -60).Format("2006-01-02"))
 	if err != nil {
@@ -117,8 +117,8 @@ func (s *Service) Profile(ctx context.Context) (*Profile, error) {
 
 // ---- collection ----
 
-// CollectionFighter is one card in GET /api/collection's fighter grid.
-type CollectionFighter struct {
+// CollectionPokemon is one card in GET /api/collection's Pokémon grid.
+type CollectionPokemon struct {
 	Slug       string     `json:"slug"`
 	Name       string     `json:"name"`
 	Rarity     string     `json:"rarity"`
@@ -129,9 +129,9 @@ type CollectionFighter struct {
 
 // Collection is the response shape for GET /api/collection.
 type Collection struct {
-	Fighters    []CollectionFighter `json:"fighters"`
-	DragonBalls []int               `json:"dragon_balls"`
-	ReadyToWish bool                `json:"ready_to_wish"`
+	Pokemon      []CollectionPokemon `json:"pokemon"`
+	GymBadges    []int               `json:"gym_badges"`
+	ReadyToCatch bool                `json:"ready_to_catch"`
 }
 
 func (s *Service) Collection(ctx context.Context) (*Collection, error) {
@@ -145,37 +145,37 @@ func (s *Service) Collection(ctx context.Context) (*Collection, error) {
 	}
 
 	c := &Collection{}
-	for _, f := range Fighters {
-		cf := CollectionFighter{Slug: f.Slug, Name: f.Name, Rarity: string(f.Rarity), Hint: unlockHint(f)}
-		if u, ok := byKey[UnlockFighter+":"+f.Slug]; ok {
-			cf.Unlocked = true
+	for _, p := range Pokedex {
+		cp := CollectionPokemon{Slug: p.Slug, Name: p.Name, Rarity: string(p.Rarity), Hint: unlockHint(p)}
+		if u, ok := byKey[UnlockPokemon+":"+p.Slug]; ok {
+			cp.Unlocked = true
 			t := u.CreatedAt
-			cf.UnlockedAt = &t
+			cp.UnlockedAt = &t
 		}
-		c.Fighters = append(c.Fighters, cf)
+		c.Pokemon = append(c.Pokemon, cp)
 	}
 
 	for _, u := range unlocks {
-		if u.Kind == UnlockDragonBall {
+		if u.Kind == UnlockGymBadge {
 			if n, err := strconv.Atoi(u.Ref); err == nil {
-				c.DragonBalls = append(c.DragonBalls, n)
+				c.GymBadges = append(c.GymBadges, n)
 			}
 		}
 	}
-	sort.Ints(c.DragonBalls)
-	c.ReadyToWish = len(c.DragonBalls) == 7
+	sort.Ints(c.GymBadges)
+	c.ReadyToCatch = len(c.GymBadges) == 8
 
 	return c, nil
 }
 
-func unlockHint(f Fighter) string {
-	switch f.Condition.Type {
-	case "power_level":
-		return fmt.Sprintf("Reach power level %d", f.Condition.PowerLevel)
+func unlockHint(p Pokemon) string {
+	switch p.Condition.Type {
+	case "xp":
+		return fmt.Sprintf("Reach %d XP", p.Condition.XP)
 	case "saga":
-		return fmt.Sprintf("Complete the %s saga", f.Condition.Saga)
-	case "wish_only":
-		return "Summon Shenron with all 7 dragon balls"
+		return fmt.Sprintf("Complete the %s gym arc", p.Condition.Saga)
+	case "catch_only":
+		return "Use the Master Ball with all 8 gym badges"
 	default:
 		return ""
 	}
@@ -196,12 +196,12 @@ type QuestSaga struct {
 	Chapters []QuestChapterView `json:"chapters"`
 }
 
-// SagaOrder is the fixed story order sagas unlock in (ARCHITECTURE.md
-// "Quests": "5 sagas x 4 chapters" — saiyan, namek, android, cell, buu).
-// The DB has no ordinal column for this (quest_chapters is keyed by
-// (saga, chapter), which sorts alphabetically), so this table is
-// authoritative for saga sequencing.
-var SagaOrder = []string{"saiyan", "namek", "android", "cell", "buu"}
+// SagaOrder is the fixed story order gym arcs unlock in (ARCHITECTURE.md
+// "Quests": "5 gym arcs x 4 chapters" — pewter, cerulean, celadon, fuchsia,
+// cinnabar). The DB has no ordinal column for this (quest_chapters is keyed
+// by (saga, chapter), which sorts alphabetically), so this table is
+// authoritative for arc sequencing.
+var SagaOrder = []string{"pewter", "cerulean", "celadon", "fuchsia", "cinnabar"}
 
 func (s *Service) Quests(ctx context.Context) ([]QuestSaga, error) {
 	chapters, err := s.store.ListQuestChapters(ctx)

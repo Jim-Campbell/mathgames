@@ -9,18 +9,18 @@ func okMS(difficulty int) int   { return 3 * fastMS(difficulty) }
 // divide, matching every other derived amount in this app.
 //
 // Worked example (ARCHITECTURE.md "Scoring"): difficulty 4, answered
-// correctly in 9.2s with streak reaching 7, no zenkai.
+// correctly in 9.2s with streak reaching 7, no comeback.
 //
 //	base = 10*4 = 40
 //	fast_ms = 5000+2000*4 = 13000; 9200 <= 13000 -> speed x150/100 -> 60
 //	streak 7 >= 6 -> x125/100 -> 75
 //
-// 75 XP. The same answer arriving after 3 straight misses (zenkai) doubles
+// 75 XP. The same answer arriving after 3 straight misses (comeback) doubles
 // to 150.
 //
-// A wrong answer always earns a flat 1 XP, bypassing speed/streak/zenkai/
+// A wrong answer always earns a flat 1 XP, bypassing speed/streak/comeback/
 // daily entirely ("showing up counts").
-func Score(difficulty, elapsedMS, streakAfter int, correct, zenkai, daily bool) int {
+func Score(difficulty, elapsedMS, streakAfter int, correct, comeback, daily bool) int {
 	if !correct {
 		return 1
 	}
@@ -51,7 +51,7 @@ func Score(difficulty, elapsedMS, streakAfter int, correct, zenkai, daily bool) 
 	}
 	xp = xp * streakMult / 100
 
-	if zenkai {
+	if comeback {
 		xp *= 2
 	}
 	if daily {

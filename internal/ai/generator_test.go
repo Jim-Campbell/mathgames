@@ -109,7 +109,7 @@ func (discardWriter) Write(p []byte) (int, error) { return len(p), nil }
 func TestGenerator_GenerateBatch_AcceptsAndRejects(t *testing.T) {
 	// One valid numeric item, one with a check expression that lies.
 	resp := `[
-		{"payload": {"kind": "numeric", "prompt": "Goku trains 34 warriors for 12 days, plus 50 bonus minutes."}, "answer": {"value": 458}, "explanation": "34*12+50=458", "check": "34*12+50"},
+		{"payload": {"kind": "numeric", "prompt": "Ash trains 34 Pokémon for 12 days, plus 50 bonus minutes."}, "answer": {"value": 458}, "explanation": "34*12+50=458", "check": "34*12+50"},
 		{"payload": {"kind": "numeric", "prompt": "This one lies about its check."}, "answer": {"value": 999}, "explanation": "bogus", "check": "1+1"}
 	]`
 	store := &stubStore{}
@@ -149,24 +149,24 @@ func TestGenerator_GenerateBatch_InvalidSkill(t *testing.T) {
 func TestGenerator_GenerateStorySaga(t *testing.T) {
 	store := &stubStore{
 		chapters: []*game.QuestChapter{
-			{ID: 1, Saga: "saiyan", Chapter: 1, Title: "old title", Requirement: game.QuestRequirement{Correct: 8, Skills: []string{"multiplication"}, MinDifficulty: 1}},
-			{ID: 2, Saga: "saiyan", Chapter: 2, Title: "old title 2", Requirement: game.QuestRequirement{Correct: 10, Skills: []string{"division"}, MinDifficulty: 1}},
+			{ID: 1, Saga: "pewter", Chapter: 1, Title: "old title", Requirement: game.QuestRequirement{Correct: 8, Skills: []string{"multiplication"}, MinDifficulty: 1}},
+			{ID: 2, Saga: "pewter", Chapter: 2, Title: "old title 2", Requirement: game.QuestRequirement{Correct: 10, Skills: []string{"division"}, MinDifficulty: 1}},
 		},
 	}
 	resp := `[
-		{"chapter": 1, "title": "Training Begins", "story": "Goku sends you to train. Land 8 multiplication hits to prove your strength!"},
-		{"chapter": 2, "title": "Raditz Arrives", "story": "A new threat appears. Solve 10 division problems to power up!"}
+		{"chapter": 1, "title": "Training Begins", "story": "Professor Oak sends you to train. Land 8 multiplication hits to prove your strength!"},
+		{"chapter": 2, "title": "A Rival Arrives", "story": "A new challenger appears. Solve 10 division problems to power up!"}
 	]`
 	gen := NewGenerator(store, &fakeMessenger{text: resp}, "claude-sonnet-5", discardLogger())
 
-	result, err := gen.GenerateStorySaga(context.Background(), "saiyan")
+	result, err := gen.GenerateStorySaga(context.Background(), "pewter")
 	if err != nil {
 		t.Fatalf("GenerateStorySaga: %v", err)
 	}
 	if result.Accepted != 2 || result.Rejected != 0 {
 		t.Errorf("got accepted=%d rejected=%d, want 2/0", result.Accepted, result.Rejected)
 	}
-	if store.chapters[0].Title != "Training Begins" || store.chapters[1].Title != "Raditz Arrives" {
+	if store.chapters[0].Title != "Training Begins" || store.chapters[1].Title != "A Rival Arrives" {
 		t.Errorf("titles not updated: %+v", store.chapters)
 	}
 	if store.chapters[0].AIBatchID == nil || *store.chapters[0].AIBatchID != result.BatchID {

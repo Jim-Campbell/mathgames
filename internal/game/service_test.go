@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	mrand "math/rand"
 	"testing"
+	"time"
 )
 
 func testService() (*Service, *fakeStore) {
@@ -55,9 +56,9 @@ func TestService_Attempt_CorrectIncreasesXPStreakPower(t *testing.T) {
 	if res.Streak != 1 {
 		t.Fatalf("streak = %d, want 1", res.Streak)
 	}
-	if res.PowerLevel != res.PowerLevelBefore+int64(res.XPEarned) {
+	if res.XP != res.XPBefore+int64(res.XPEarned) {
 		t.Fatalf("power level mismatch: before=%d earned=%d after=%d",
-			res.PowerLevelBefore, res.XPEarned, res.PowerLevel)
+			res.XPBefore, res.XPEarned, res.XP)
 	}
 
 	state, err := store.GetSkillState(ctx, "multiplication")
@@ -131,9 +132,9 @@ func TestService_Attempt_QuestModeAdvancesAndCompletesChapter(t *testing.T) {
 	ctx := context.Background()
 
 	ch := store.addChapter(QuestChapter{
-		Saga: "saiyan", Chapter: 1, Title: "t", Story: "s",
+		Saga: "pewter", Chapter: 1, Title: "t", Story: "s",
 		Requirement: QuestRequirement{Correct: 2, Skills: []string{"multiplication"}, MinDifficulty: 1},
-		Reward:      QuestReward{XP: 500, Fighter: "vegeta"},
+		Reward:      QuestReward{XP: 500, Pokemon: "gengar"},
 	})
 
 	sess := &Session{Mode: ModeQuest}
@@ -149,14 +150,14 @@ func TestService_Attempt_QuestModeAdvancesAndCompletesChapter(t *testing.T) {
 		if i == 1 {
 			// Second correct attempt completes the chapter and grants the
 			// reward, so its XP/unlock should show up.
-			foundVegeta := false
+			foundGengar := false
 			for _, u := range res.Unlocks {
-				if u.Ref == "vegeta" {
-					foundVegeta = true
+				if u.Ref == "gengar" {
+					foundGengar = true
 				}
 			}
-			if !foundVegeta {
-				t.Fatalf("expected vegeta unlock on chapter completion, got %+v", res.Unlocks)
+			if !foundGengar {
+				t.Fatalf("expected gengar unlock on chapter completion, got %+v", res.Unlocks)
 			}
 		}
 	}
@@ -175,12 +176,12 @@ func TestService_Attempt_QuestModeAdvancesAndCompletesChapter(t *testing.T) {
 	unlocks, _ := store.ListUnlocks(ctx)
 	found := false
 	for _, u := range unlocks {
-		if u.Kind == UnlockFighter && u.Ref == "vegeta" {
+		if u.Kind == UnlockPokemon && u.Ref == "gengar" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatal("expected vegeta fighter unlock persisted")
+		t.Fatal("expected gengar pokemon unlock persisted")
 	}
 }
 
@@ -191,7 +192,7 @@ func TestService_Attempt_DailyModeUpdatesResultsAndPerfectDayBonus(t *testing.T)
 	q1 := insertNumericQuestion(t, store, "multiplication", 2, 4)
 	q2 := insertNumericQuestion(t, store, "division", 2, 3)
 
-	day := "2026-07-13"
+	day := time.Now().UTC().Format("2006-01-02")
 	if err := store.CreateDailyResult(ctx, &DailyResult{Day: day, QuestionIDs: []int64{q1, q2}}); err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +242,7 @@ func TestService_Attempt_NewUnlockSurfacesExactlyOnce(t *testing.T) {
 	sess := &Session{Mode: ModeTraining}
 	store.CreateSession(ctx, sess)
 
-	// Seed skill_state XP just under the Krillin threshold (500) so one
+	// Seed skill_state XP just under the Pidgey threshold (500) so one
 	// more correct attempt crosses it.
 	store.UpdateSkillState(ctx, &SkillState{Skill: "multiplication", Level: 5, XP: 399})
 
@@ -254,13 +255,13 @@ func TestService_Attempt_NewUnlockSurfacesExactlyOnce(t *testing.T) {
 	}
 	foundFirst := false
 	for _, u := range res1.Unlocks {
-		if u.Ref == "krillin" {
+		if u.Ref == "pidgey" {
 			foundFirst = true
 		}
 	}
 	if !foundFirst {
-		t.Fatalf("expected krillin unlock crossing power 500, powerBefore=%d powerAfter=%d unlocks=%+v",
-			res1.PowerLevelBefore, res1.PowerLevel, res1.Unlocks)
+		t.Fatalf("expected pidgey unlock crossing xp 500, xpBefore=%d xpAfter=%d unlocks=%+v",
+			res1.XPBefore, res1.XP, res1.Unlocks)
 	}
 
 	// A subsequent attempt (still above threshold) must not re-report it.
@@ -270,8 +271,8 @@ func TestService_Attempt_NewUnlockSurfacesExactlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, u := range res2.Unlocks {
-		if u.Ref == "krillin" {
-			t.Fatalf("krillin should not be re-reported: %+v", res2.Unlocks)
+		if u.Ref == "pidgey" {
+			t.Fatalf("pidgey should not be re-reported: %+v", res2.Unlocks)
 		}
 	}
 }
@@ -352,9 +353,9 @@ func TestService_ResetProgress_WipesProgressKeepsBank(t *testing.T) {
 		t.Fatal(err)
 	}
 	store.UpdateSkillState(ctx, &SkillState{Skill: "division", Level: 6, XP: 1234, Streak: 5, WrongRun: 2, WindowTotal: 7, WindowCorrect: 4})
-	store.InsertUnlock(ctx, &Unlock{Kind: "fighter", Ref: "krillin", Source: "power_level 500"})
-	store.CreateDailyResult(ctx, &DailyResult{Day: "2026-07-13", QuestionIDs: []int64{qID}, Answered: 5, Correct: 5})
-	ch := store.addChapter(QuestChapter{Saga: "saiyan", Chapter: 1, Progress: 8})
+	store.InsertUnlock(ctx, &Unlock{Kind: "pokemon", Ref: "pidgey", Source: "xp 500"})
+	store.CreateDailyResult(ctx, &DailyResult{Day: time.Now().UTC().Format("2006-01-02"), QuestionIDs: []int64{qID}, Answered: 5, Correct: 5})
+	ch := store.addChapter(QuestChapter{Saga: "pewter", Chapter: 1, Progress: 8})
 	store.settings.LevelOverride = map[string]int{"multiplication": 7}
 
 	if err := svc.ResetProgress(ctx); err != nil {
@@ -386,8 +387,8 @@ func TestService_ResetProgress_WipesProgressKeepsBank(t *testing.T) {
 		t.Fatalf("level_override not cleared: %+v", store.settings.LevelOverride)
 	}
 	// Power level is back to the floor of 100.
-	if p, _ := svc.Profile(ctx); p.PowerLevel != 100 {
-		t.Fatalf("power level = %d after reset, want 100", p.PowerLevel)
+	if p, _ := svc.Profile(ctx); p.XP != 100 {
+		t.Fatalf("total xp = %d after reset, want 100", p.XP)
 	}
 
 	// The question bank survives (times_served zeroed but the row stays).
@@ -404,8 +405,8 @@ func TestService_ResetProgress_WipesProgressKeepsBank(t *testing.T) {
 func TestService_Attempt_ForcedEventDoublesXPAndRecords(t *testing.T) {
 	svc, store := testService()
 	ctx := context.Background()
-	kaioken := events[0]
-	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &kaioken }
+	luckyEgg := events[0]
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &luckyEgg }
 
 	sess := &Session{Mode: ModeTraining}
 	store.CreateSession(ctx, sess)
@@ -419,34 +420,34 @@ func TestService_Attempt_ForcedEventDoublesXPAndRecords(t *testing.T) {
 	if res.Event == nil {
 		t.Fatal("expected event in result")
 	}
-	if res.Event.Slug != "kaioken" {
-		t.Fatalf("event slug = %q, want kaioken", res.Event.Slug)
+	if res.Event.Slug != "lucky_egg" {
+		t.Fatalf("event slug = %q, want lucky_egg", res.Event.Slug)
 	}
-	if res.Event.Name != kaioken.Name || res.Event.Message != kaioken.Message || res.Event.Multiplier != "×2" {
+	if res.Event.Name != luckyEgg.Name || res.Event.Message != luckyEgg.Message || res.Event.Multiplier != "×2" {
 		t.Fatalf("event fields = %+v, want name/message/multiplier from registry", res.Event)
 	}
 	if res.Event.XPBefore <= 0 || res.XPEarned != res.Event.XPBefore*2 {
 		t.Fatalf("xp_before=%d xp_earned=%d, want xp_earned = 2*xp_before", res.Event.XPBefore, res.XPEarned)
 	}
 
-	if len(store.attempts) != 1 || store.attempts[0].Event != "kaioken" {
-		t.Fatalf("attempt row event = %q, want kaioken", store.attempts[0].Event)
+	if len(store.attempts) != 1 || store.attempts[0].Event != "lucky_egg" {
+		t.Fatalf("attempt row event = %q, want lucky_egg", store.attempts[0].Event)
 	}
 	state, _ := store.GetSkillState(ctx, "multiplication")
 	if state.XP != int64(res.XPEarned) {
 		t.Fatalf("persisted skill XP = %d, want %d (doubled xp)", state.XP, res.XPEarned)
 	}
-	if res.PowerLevel != res.PowerLevelBefore+int64(res.XPEarned) {
+	if res.XP != res.XPBefore+int64(res.XPEarned) {
 		t.Fatalf("power level should reflect doubled XP: before=%d earned=%d after=%d",
-			res.PowerLevelBefore, res.XPEarned, res.PowerLevel)
+			res.XPBefore, res.XPEarned, res.XP)
 	}
 }
 
 func TestService_Attempt_ForcedCapsuleAddsFlatXPAndRecords(t *testing.T) {
 	svc, store := testService()
 	ctx := context.Background()
-	capsule := findEvent(t, "capsule")
-	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return capsule }
+	rareCandy := findEvent(t, "rare_candy")
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return rareCandy }
 
 	sess := &Session{Mode: ModeTraining}
 	store.CreateSession(ctx, sess)
@@ -457,22 +458,22 @@ func TestService_Attempt_ForcedCapsuleAddsFlatXPAndRecords(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Event == nil || res.Event.Slug != "capsule" {
-		t.Fatalf("expected capsule event, got %+v", res.Event)
+	if res.Event == nil || res.Event.Slug != "rare_candy" {
+		t.Fatalf("expected rare_candy event, got %+v", res.Event)
 	}
 	if res.XPEarned != res.Event.XPBefore+100 {
 		t.Fatalf("xp_before=%d xp_earned=%d, want xp_earned = xp_before + 100", res.Event.XPBefore, res.XPEarned)
 	}
-	if len(store.attempts) != 1 || store.attempts[0].Event != "capsule" {
-		t.Fatalf("attempt row event = %q, want capsule", store.attempts[0].Event)
+	if len(store.attempts) != 1 || store.attempts[0].Event != "rare_candy" {
+		t.Fatalf("attempt row event = %q, want rare_candy", store.attempts[0].Event)
 	}
 }
 
 func TestService_Attempt_ForcedUltraInstinctTriplesXPAndRecords(t *testing.T) {
 	svc, store := testService()
 	ctx := context.Background()
-	ui := findEvent(t, "ultra_instinct")
-	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return ui }
+	ch2 := findEvent(t, "critical_hit")
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return ch2 }
 
 	sess := &Session{Mode: ModeTraining}
 	store.CreateSession(ctx, sess)
@@ -483,14 +484,14 @@ func TestService_Attempt_ForcedUltraInstinctTriplesXPAndRecords(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Event == nil || res.Event.Slug != "ultra_instinct" {
-		t.Fatalf("expected ultra_instinct event, got %+v", res.Event)
+	if res.Event == nil || res.Event.Slug != "critical_hit" {
+		t.Fatalf("expected critical_hit event, got %+v", res.Event)
 	}
 	if res.Event.XPBefore <= 0 || res.XPEarned != res.Event.XPBefore*3 {
 		t.Fatalf("xp_before=%d xp_earned=%d, want xp_earned = 3*xp_before", res.Event.XPBefore, res.XPEarned)
 	}
-	if len(store.attempts) != 1 || store.attempts[0].Event != "ultra_instinct" {
-		t.Fatalf("attempt row event = %q, want ultra_instinct", store.attempts[0].Event)
+	if len(store.attempts) != 1 || store.attempts[0].Event != "critical_hit" {
+		t.Fatalf("attempt row event = %q, want critical_hit", store.attempts[0].Event)
 	}
 }
 
@@ -519,10 +520,10 @@ func TestService_Attempt_NoEventLeavesFieldsEmpty(t *testing.T) {
 func TestService_Attempt_WrongAnswerNeverFiresEvent(t *testing.T) {
 	svc, store := testService()
 	ctx := context.Background()
-	kaioken := events[0]
+	luckyEgg := events[0]
 	// Even a roll stub that would always fire must never be consulted for a
 	// wrong answer (RollEvent is only called when correct).
-	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &kaioken }
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &luckyEgg }
 
 	sess := &Session{Mode: ModeTraining}
 	store.CreateSession(ctx, sess)
@@ -547,8 +548,8 @@ func TestService_Attempt_WrongAnswerNeverFiresEvent(t *testing.T) {
 func TestService_Attempt_CooldownHoldsWithinTenAttempts(t *testing.T) {
 	svc, store := testService()
 	ctx := context.Background()
-	kaioken := events[0]
-	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &kaioken }
+	luckyEgg := events[0]
+	svc.rollEvent = func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event { return &luckyEgg }
 
 	sess := &Session{Mode: ModeTraining}
 	store.CreateSession(ctx, sess)

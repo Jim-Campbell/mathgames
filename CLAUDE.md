@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-DBZ-themed math + logic games PWA for Skyler (gifted 8-year-old, 4th-grade
+Pokémon-themed math + logic games PWA for Skyler (gifted 8-year-old, 4th-grade
 content, adaptive). Single user, iPad-first. Sibling app to
 `~/projects/food`, `~/projects/finance`, and `~/projects/journal` — same
 structure, patterns, and bearer-key auth.
@@ -45,7 +45,7 @@ prompts live in `build-prompts/`.
   raw (given answer, elapsed_ms, streak/level at that moment). Never discard
   or aggregate away raw attempt rows.
 - **All game logic is deterministic Go with unit tests** — XP, streaks,
-  zenkai, adaptive ladder, grading, daily seeding, unlocks. The AI generates
+  comeback, adaptive ladder, grading, daily seeding, unlocks. The AI generates
   content (word problems, logic puzzles, saga stories) in reviewed batches;
   it never grades, scores, or writes game state.
 - AI questions are validated before insert (shape + numeric `check`

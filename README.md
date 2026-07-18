@@ -1,13 +1,13 @@
-# DBZ Math Training
+# Pokémon Math Training
 
-A Dragon Ball Z–themed math + logic training PWA built for Skyler, a gifted
+A Pokémon-themed math + logic training PWA built for Skyler, a gifted
 8-year-old heading into 3rd grade, targeting 4th-grade content with
 difficulty that adapts on its own. Single user, iPad-first, installed as a
 home-screen app.
 
-Answering problems is "training," XP drives a power level, milestones
-unlock a collection of fighters, story quests are "sagas," and collecting
-seven dragon balls summons Shenron for a wish. All artwork is original
+Answering problems is "training," XP drives a Trainer XP total, milestones
+unlock a Pokédex collection, story quests are gym arcs, and collecting all
+eight gym badges earns the Master Ball for a catch. All artwork is original
 inline SVG — names and lore references are used playfully, non-commercially.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design (schema, API
@@ -70,8 +70,8 @@ validation against recorded fixtures).
 
 ## Content seeding
 
-The two AI skills (`word_problems`, `logic`) and the five saga stories start
-empty. Fill them with:
+The two AI skills (`word_problems`, `logic`) and the five gym-arc stories
+start empty. Fill them with:
 
 ```sh
 MATHGAMES_BASE_URL=http://localhost:8083 \
@@ -80,7 +80,7 @@ scripts/seed-content.sh
 ```
 
 This tops up each skill×level to ~40 non-retired questions and rewrites all
-saga story text. It's idempotent — safe to re-run to top up a bank after
+gym-arc story text. It's idempotent — safe to re-run to top up a bank after
 retiring bad questions in the parent view. Requires `ANTHROPIC_API_KEY` to
 be set on the target server.
 
@@ -104,13 +104,13 @@ status with a Generate button, question review/retire, settings
 export download, and a **Danger Zone** with a factory reset.
 
 The reset (`POST /api/reset`, gated on `{"confirm":"RESET"}`) wipes all
-progress — power level, XP, levels, streaks, unlocks, daily history, quest
-progress — back to a fresh start, while keeping the question bank and saga
-stories. Use it before handing the app to Skyler for the first time (export
-a backup first — it can't be undone).
+progress — XP, levels, streaks, unlocks, daily history, quest progress —
+back to a fresh start, while keeping the question bank and gym-arc stories.
+Use it before handing the app to Skyler for the first time (export a
+backup first — it can't be undone).
 
-During play, an optional **ki-charge speed timer** shows which speed bonus
-he's currently earning (×1.5 "blazing" → ×1.2 "fast" → base), mapped to the
+During play, an optional **speed timer** shows which speed bonus he's
+currently earning (×1.5 "blazing" → ×1.2 "fast" → base), mapped to the
 same thresholds `internal/game/score.go` scores with. It never punishes a
 slow answer (no countdown-to-zero); parents can hide it from the settings
 toggle.

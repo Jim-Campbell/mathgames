@@ -254,26 +254,26 @@ func (f *fakeStore) DeleteUnlocks(ctx context.Context, kind string, refs []strin
 	return nil
 }
 
-func (f *fakeStore) Wish(ctx context.Context, fighterRef, bonusSkill string, bonusXP int64) (int, bool, error) {
-	ballCount := 0
+func (f *fakeStore) Catch(ctx context.Context, pokemonRef, bonusSkill string, bonusXP int64) (int, bool, error) {
+	badgeCount := 0
 	for _, u := range f.unlocks {
-		if u.Kind == UnlockDragonBall {
-			ballCount++
+		if u.Kind == UnlockGymBadge {
+			badgeCount++
 		}
 	}
-	if ballCount != 7 {
-		return ballCount, false, nil
+	if badgeCount != 8 {
+		return badgeCount, false, nil
 	}
-	if _, exists := f.unlocks[UnlockFighter+":"+fighterRef]; exists {
-		return ballCount, true, nil
+	if _, exists := f.unlocks[UnlockPokemon+":"+pokemonRef]; exists {
+		return badgeCount, true, nil
 	}
 
 	f.nextUID++
-	f.unlocks[UnlockFighter+":"+fighterRef] = &Unlock{
-		ID: f.nextUID, Kind: UnlockFighter, Ref: fighterRef, Source: "wish", CreatedAt: time.Now(),
+	f.unlocks[UnlockPokemon+":"+pokemonRef] = &Unlock{
+		ID: f.nextUID, Kind: UnlockPokemon, Ref: pokemonRef, Source: "catch", CreatedAt: time.Now(),
 	}
 	for ref := range f.unlocks {
-		if f.unlocks[ref].Kind == UnlockDragonBall {
+		if f.unlocks[ref].Kind == UnlockGymBadge {
 			delete(f.unlocks, ref)
 		}
 	}
@@ -285,7 +285,7 @@ func (f *fakeStore) Wish(ctx context.Context, fighterRef, bonusSkill string, bon
 	cp.XP += bonusXP
 	cp.UpdatedAt = time.Now()
 	f.skillStates[bonusSkill] = &cp
-	return ballCount, false, nil
+	return badgeCount, false, nil
 }
 
 func (f *fakeStore) ListQuestChapters(ctx context.Context) ([]QuestChapter, error) {

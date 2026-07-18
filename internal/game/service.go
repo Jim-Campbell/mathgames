@@ -12,15 +12,15 @@ import (
 )
 
 // BonusSkillSlug is a pseudo-skill row in skill_state that holds XP not
-// earned by practicing a specific skill (quest/saga rewards, wish grants).
+// earned by practicing a specific skill (quest/saga rewards, catch grants).
 // It's never in the Skills registry, so it's excluded from per-skill views
 // (profile, home chips) automatically while still counting toward
-// powerLevel(), which sums every skill_state row.
+// totalXP(), which sums every skill_state row.
 const BonusSkillSlug = "_bonus"
 
-// WishXP is the flat XP bonus a granted wish adds (ARCHITECTURE.md
+// CatchXP is the flat XP bonus a granted catch adds (ARCHITECTURE.md
 // "Collection, quests, daily").
-const WishXP = 1000
+const CatchXP = 1000
 
 // Service orchestrates attempts and question serving on top of a Store.
 type Service struct {
@@ -245,13 +245,13 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		return nil, fmt.Errorf("not found: session")
 	}
 
-	// Power level before this attempt's XP lands, for the response and for
+	// Total XP before this attempt's XP lands, for the response and for
 	// unlock threshold detection.
 	statesBefore, err := s.store.ListSkillStates(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list skill states: %w", err)
 	}
-	powerBefore := powerLevel(statesBefore)
+	xpBefore := totalXP(statesBefore)
 
 	state, err := s.store.GetSkillState(ctx, q.Skill)
 	if err != nil {
@@ -261,7 +261,7 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		state = &SkillState{Skill: q.Skill, Level: 1}
 	}
 
-	zenkai := correct && state.WrongRun >= 3
+	comeback := correct && state.WrongRun >= 3
 	daily := session.Mode == ModeDaily
 
 	if daily {
@@ -278,10 +278,10 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 	if correct {
 		streakAfter = state.Streak + 1
 	}
-	xp := Score(q.Difficulty, elapsedMS, streakAfter, correct, zenkai, daily)
+	xp := Score(q.Difficulty, elapsedMS, streakAfter, correct, comeback, daily)
 
 	// Random events only ever fire on a correct answer, applied after
-	// zenkai/daily are already baked into xp -- a daily kaio-ken answer is
+	// comeback/daily are already baked into xp -- a daily lucky-egg answer is
 	// (base×speed×streak×2 daily)×2 event, stacking intentionally.
 	var ev *Event
 	var xpBeforeEvent int
@@ -343,7 +343,7 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		rewardXP += granted
 		questUnlocks = qu
 		// Quest rewards aren't tied to a single practiced skill, so they
-		// land in the bonus pseudo-skill row (see Wish, which does the
+		// land in the bonus pseudo-skill row (see Catch, which does the
 		// same for its +1000 XP) rather than q.Skill's own state -- keeps
 		// per-skill XP an honest reflection of practice in that skill.
 		if rewardXP > 0 {
@@ -359,9 +359,9 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		}
 	}
 
-	powerAfter := powerBefore + int64(xp) + int64(rewardXP)
+	xpAfter := xpBefore + int64(xp) + int64(rewardXP)
 
-	thresholdUnlocks, err := s.detectAndPersistUnlocks(ctx, powerBefore, powerAfter)
+	thresholdUnlocks, err := s.detectAndPersistUnlocks(ctx, xpBefore, xpAfter)
 	if err != nil {
 		return nil, err
 	}
@@ -397,12 +397,12 @@ func (s *Service) Attempt(ctx context.Context, sessionID, questionID int64, give
 		Answer:            q.Answer,
 		Explanation:       q.Explanation,
 		XPEarned:          xp,
-		Zenkai:            zenkai,
+		Comeback:          comeback,
 		Streak:            newState.Streak,
 		SkillLevel:        newState.Level,
 		LevelChanged:      levelChanged,
-		PowerLevel:        powerAfter,
-		PowerLevelBefore:  powerBefore,
+		XP:                xpAfter,
+		XPBefore:          xpBefore,
 		Unlocks:           unlocks,
 		Event:             eventResult,
 		ScreenTimeMinutes: screenTimeMinutes,
@@ -607,8 +607,8 @@ func (s *Service) Export(ctx context.Context) (map[string]any, error) {
 	return doc, nil
 }
 
-// powerLevel = 100 + lifetime XP summed across every skill. It only goes up.
-func powerLevel(states []SkillState) int64 {
+// totalXP = 100 + lifetime XP summed across every skill. It only goes up.
+func totalXP(states []SkillState) int64 {
 	var total int64 = 100
 	for _, s := range states {
 		total += s.XP
@@ -619,8 +619,8 @@ func powerLevel(states []SkillState) int64 {
 // applyQuestProgress advances every incomplete quest chapter whose
 // requirement is satisfied by this correct attempt (skill listed, min
 // difficulty met), granting the reward and returning any XP it carries plus
-// the unlocks it directly granted (fighter/dragon-ball rewards — these are
-// separate from the power-level/streak/saga threshold unlocks detectAndPersistUnlocks
+// the unlocks it directly granted (pokemon/gym-badge rewards — these are
+// separate from the xp/streak/saga threshold unlocks detectAndPersistUnlocks
 // finds, so the caller must merge both into the response).
 func (s *Service) applyQuestProgress(ctx context.Context, skill string, difficulty int) (int, []Unlock, error) {
 	chapters, err := s.store.ListQuestChapters(ctx)
@@ -648,28 +648,28 @@ func (s *Service) applyQuestProgress(ctx context.Context, skill string, difficul
 			completedAt = &now
 			rewardXP += ch.Reward.XP
 			source := fmt.Sprintf("saga %s ch%d", ch.Saga, ch.Chapter)
-			if ch.Reward.Fighter != "" {
-				u := &Unlock{Kind: UnlockFighter, Ref: ch.Reward.Fighter, Source: source}
+			if ch.Reward.Pokemon != "" {
+				u := &Unlock{Kind: UnlockPokemon, Ref: ch.Reward.Pokemon, Source: source}
 				inserted, err := s.store.InsertUnlock(ctx, u)
 				if err != nil {
-					return 0, nil, fmt.Errorf("insert quest fighter unlock: %w", err)
+					return 0, nil, fmt.Errorf("insert quest pokemon unlock: %w", err)
 				}
 				if inserted {
-					if f, ok := FighterBySlug(ch.Reward.Fighter); ok {
-						u.Name = f.Name
-						u.Rarity = string(f.Rarity)
+					if p, ok := PokemonBySlug(ch.Reward.Pokemon); ok {
+						u.Name = p.Name
+						u.Rarity = string(p.Rarity)
 					}
 					unlocks = append(unlocks, *u)
 				}
 			}
-			if ch.Reward.DragonBall > 0 {
-				u := &Unlock{Kind: UnlockDragonBall, Ref: fmt.Sprintf("%d", ch.Reward.DragonBall), Source: source}
+			if ch.Reward.GymBadge > 0 {
+				u := &Unlock{Kind: UnlockGymBadge, Ref: fmt.Sprintf("%d", ch.Reward.GymBadge), Source: source}
 				inserted, err := s.store.InsertUnlock(ctx, u)
 				if err != nil {
-					return 0, nil, fmt.Errorf("insert dragon ball unlock: %w", err)
+					return 0, nil, fmt.Errorf("insert gym badge unlock: %w", err)
 				}
 				if inserted {
-					u.Name = fmt.Sprintf("Dragon Ball %d", ch.Reward.DragonBall)
+					u.Name = fmt.Sprintf("Gym Badge %d", ch.Reward.GymBadge)
 					unlocks = append(unlocks, *u)
 				}
 			}
@@ -719,10 +719,10 @@ func (s *Service) applyDailyProgress(ctx context.Context, questionID int64, corr
 	return s.store.UpdateDailyResult(ctx, d)
 }
 
-// detectAndPersistUnlocks runs fighters.DetectUnlocks against the power
-// level delta (plus current daily streak / saga completions), inserts any
-// newly-earned rows, and fills in Name/Rarity for the API response.
-func (s *Service) detectAndPersistUnlocks(ctx context.Context, powerBefore, powerAfter int64) ([]Unlock, error) {
+// detectAndPersistUnlocks runs DetectUnlocks against the total-XP delta
+// (plus current daily streak / saga completions), inserts any newly-earned
+// rows, and fills in Name/Rarity for the API response.
+func (s *Service) detectAndPersistUnlocks(ctx context.Context, xpBefore, xpAfter int64) ([]Unlock, error) {
 	existing, err := s.store.ListUnlocks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list unlocks: %w", err)
@@ -744,29 +744,29 @@ func (s *Service) detectAndPersistUnlocks(ctx context.Context, powerBefore, powe
 	}
 	sagaCompletions := sagaCompletionsFrom(chapters)
 
-	newlyEarned := DetectUnlocks(powerBefore, powerAfter, streak, sagaCompletions, already)
+	newlyEarned := DetectUnlocks(xpBefore, xpAfter, streak, sagaCompletions, already)
 
 	var out []Unlock
-	for _, f := range newlyEarned {
-		kind := UnlockFighter
-		source := fmt.Sprintf("power_level %d", f.Condition.PowerLevel)
-		switch f.Condition.Type {
+	for _, p := range newlyEarned {
+		kind := UnlockPokemon
+		source := fmt.Sprintf("xp %d", p.Condition.XP)
+		switch p.Condition.Type {
 		case "streak":
-			kind = UnlockBadge
-			source = fmt.Sprintf("daily streak %d days", f.Condition.StreakDays)
+			kind = UnlockRibbon
+			source = fmt.Sprintf("daily streak %d days", p.Condition.StreakDays)
 		case "saga":
-			source = fmt.Sprintf("saga %s ch%d", f.Condition.Saga, f.Condition.Chapter)
+			source = fmt.Sprintf("saga %s ch%d", p.Condition.Saga, p.Condition.Chapter)
 		}
-		u := &Unlock{Kind: kind, Ref: f.Slug, Source: source}
+		u := &Unlock{Kind: kind, Ref: p.Slug, Source: source}
 		inserted, err := s.store.InsertUnlock(ctx, u)
 		if err != nil {
-			return nil, fmt.Errorf("insert unlock %s: %w", f.Slug, err)
+			return nil, fmt.Errorf("insert unlock %s: %w", p.Slug, err)
 		}
 		if !inserted {
 			continue
 		}
-		u.Name = f.Name
-		u.Rarity = string(f.Rarity)
+		u.Name = p.Name
+		u.Rarity = string(p.Rarity)
 		out = append(out, *u)
 	}
 	return out, nil
@@ -831,30 +831,30 @@ func (s *Service) addBonusXP(ctx context.Context, xp int) error {
 	return nil
 }
 
-// Wish grants fighterSlug in exchange for the 7 dragon balls, per
-// ARCHITECTURE.md "Collection, quests, daily": +1000 XP, consumes the
-// balls. Returns "conflict: ..." if fewer than 7 balls are held, "invalid:
-// ..." for an unknown or already-unlocked fighter.
-func (s *Service) Wish(ctx context.Context, fighterSlug string) (*Unlock, error) {
-	fighter, ok := FighterBySlug(fighterSlug)
+// Catch grants pokemonSlug in exchange for the 8 gym badges (the Master
+// Ball), per ARCHITECTURE.md "Collection, quests, daily": +1000 XP,
+// consumes the badges. Returns "conflict: ..." if fewer than 8 badges are
+// held, "invalid: ..." for an unknown or already-unlocked Pokémon.
+func (s *Service) Catch(ctx context.Context, pokemonSlug string) (*Unlock, error) {
+	pokemon, ok := PokemonBySlug(pokemonSlug)
 	if !ok {
-		return nil, fmt.Errorf("invalid: unknown fighter %q", fighterSlug)
+		return nil, fmt.Errorf("invalid: unknown pokemon %q", pokemonSlug)
 	}
 
-	ballCount, already, err := s.store.Wish(ctx, fighterSlug, BonusSkillSlug, WishXP)
+	badgeCount, already, err := s.store.Catch(ctx, pokemonSlug, BonusSkillSlug, CatchXP)
 	if err != nil {
-		return nil, fmt.Errorf("wish: %w", err)
+		return nil, fmt.Errorf("catch: %w", err)
 	}
-	if ballCount != 7 {
-		return nil, fmt.Errorf("conflict: need all 7 dragon balls (have %d)", ballCount)
+	if badgeCount != 8 {
+		return nil, fmt.Errorf("conflict: need all 8 gym badges (have %d)", badgeCount)
 	}
 	if already {
-		return nil, fmt.Errorf("invalid: %s is already unlocked", fighter.Name)
+		return nil, fmt.Errorf("invalid: %s is already unlocked", pokemon.Name)
 	}
 
 	return &Unlock{
-		Kind: UnlockFighter, Ref: fighter.Slug, Source: "wish",
-		Name: fighter.Name, Rarity: string(fighter.Rarity),
+		Kind: UnlockPokemon, Ref: pokemon.Slug, Source: "catch",
+		Name: pokemon.Name, Rarity: string(pokemon.Rarity),
 	}, nil
 }
 

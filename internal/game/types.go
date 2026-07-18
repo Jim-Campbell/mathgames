@@ -24,12 +24,12 @@ const (
 
 // Unlock kinds, matching the DB CHECK constraint on unlocks.kind.
 const (
-	UnlockFighter    = "fighter"
-	UnlockDragonBall = "dragon_ball"
-	UnlockBadge      = "badge"
+	UnlockPokemon  = "pokemon"
+	UnlockGymBadge = "gym_badge"
+	UnlockRibbon   = "ribbon"
 )
 
-// Rarity tiers for the fighter catalog.
+// Rarity tiers for the Pokédex catalog.
 type Rarity string
 
 const (
@@ -140,12 +140,12 @@ type AttemptResult struct {
 	Answer            json.RawMessage `json:"answer"`
 	Explanation       string          `json:"explanation"`
 	XPEarned          int             `json:"xp_earned"`
-	Zenkai            bool            `json:"zenkai"`
+	Comeback          bool            `json:"comeback"`
 	Streak            int             `json:"streak"`
 	SkillLevel        int             `json:"skill_level"`
 	LevelChanged      int             `json:"level_changed"` // -1/0/+1
-	PowerLevel        int64           `json:"power_level"`
-	PowerLevelBefore  int64           `json:"power_level_before"`
+	XP                int64           `json:"xp"`
+	XPBefore          int64           `json:"xp_before"`
 	Unlocks           []Unlock        `json:"unlocks"`
 	Event             *EventResult    `json:"event,omitempty"`
 	ScreenTimeMinutes int             `json:"screen_time_minutes"`
@@ -221,27 +221,27 @@ type Session struct {
 	EndedAt   *time.Time `json:"ended_at,omitempty"`
 }
 
-// UnlockCondition describes how a Fighter (or badge) is earned.
+// UnlockCondition describes how a Pokemon (or ribbon) is earned.
 type UnlockCondition struct {
-	Type       string `json:"type"` // "power_level"|"saga"|"streak"|"wish_only"
-	PowerLevel int64  `json:"power_level,omitempty"`
+	Type       string `json:"type"` // "xp"|"saga"|"streak"|"catch_only"
+	XP         int64  `json:"xp,omitempty"`
 	Saga       string `json:"saga,omitempty"`
 	Chapter    int    `json:"chapter,omitempty"`
 	StreakDays int    `json:"streak_days,omitempty"`
 }
 
-// Fighter is a code-defined catalog entry (internal/game/fighters.go); the
+// Pokemon is a code-defined catalog entry (internal/game/pokedex.go); the
 // DB stores only which ones have been unlocked.
-type Fighter struct {
+type Pokemon struct {
 	Slug      string          `json:"slug"`
 	Name      string          `json:"name"`
 	Rarity    Rarity          `json:"rarity"`
 	Condition UnlockCondition `json:"condition"`
 }
 
-// Unlock is a DB row recording an earned fighter/dragon-ball/badge. Name and
-// Rarity are optional and filled in by the service from the Fighter catalog
-// for API convenience (not stored — badges and dragon balls have no catalog
+// Unlock is a DB row recording an earned pokemon/gym-badge/ribbon. Name and
+// Rarity are optional and filled in by the service from the Pokedex catalog
+// for API convenience (not stored — ribbons and gym badges have no catalog
 // rarity).
 type Unlock struct {
 	ID        int64     `json:"id"`
@@ -263,9 +263,9 @@ type QuestRequirement struct {
 // QuestReward is granted on chapter completion; any subset of fields may be
 // set (all omitempty).
 type QuestReward struct {
-	XP         int    `json:"xp,omitempty"`
-	Fighter    string `json:"fighter,omitempty"`
-	DragonBall int    `json:"dragon_ball,omitempty"`
+	XP       int    `json:"xp,omitempty"`
+	Pokemon  string `json:"pokemon,omitempty"`
+	GymBadge int    `json:"gym_badge,omitempty"`
 }
 
 // QuestChapter is one saga chapter.
