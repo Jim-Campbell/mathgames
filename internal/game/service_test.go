@@ -13,7 +13,7 @@ import (
 func testService() (*Service, *fakeStore) {
 	store := newFakeStore()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewService(store, log), store
+	return NewService(store, nil, log), store
 }
 
 // insertNumericQuestion is a test helper: inserts a "skill × difficulty ->

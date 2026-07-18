@@ -56,7 +56,7 @@ button.btn.sm { padding: 8px 12px; font-size: .78rem; min-height: 36px; }
 button.btn.danger { background: rgba(255,82,82,.14); color: var(--red); border: 1px solid var(--red); }
 button.btn:disabled { opacity: .4; cursor: default; }
 label.f { display: block; font-size: .75rem; color: var(--muted); margin: 12px 0 4px; }
-input[type=text], input[type=number] {
+input[type=text], input[type=number], textarea {
   width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
   color: var(--text); font-size: 16px;
 }
@@ -127,6 +127,26 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .act-correct { width: 100%; background: var(--green); }
 .act-empty { height: 3px; width: 100%; background: var(--line); margin-top: auto; }
 .act-day { font-size: .55rem; color: var(--muted); white-space: nowrap; transform: rotate(-45deg); transform-origin: center; height: 22px; }
+
+/* ---- message Uncle Jim ---- */
+.msg-btn {
+  display: block; width: 100%; margin-top: 18px; padding: 14px; border: 1px solid var(--line);
+  border-radius: 14px; background: var(--card); color: var(--text); font-size: 1rem; font-weight: 800;
+  cursor: pointer; min-height: 56px;
+}
+.msg-kinds { display: flex; gap: 8px; margin: 12px 0; }
+.msg-kind {
+  flex: 1; border: 2px solid var(--line); border-radius: 12px; background: var(--card2); color: var(--text);
+  font-size: .85rem; font-weight: 700; padding: 10px 6px; cursor: pointer; min-height: 48px;
+}
+.msg-kind.sel { border-color: var(--orange); background: rgba(255,140,26,.18); }
+.msg-text { min-height: 140px; resize: vertical; font-family: inherit; line-height: 1.4; }
+.msg-row { border-bottom: 1px solid var(--line); padding: 12px 0; }
+.msg-row.unread { background: rgba(255,213,74,.06); border-left: 3px solid var(--gold); padding-left: 10px; }
+.msg-body { font-size: .92rem; line-height: 1.45; white-space: pre-wrap; margin: 4px 0 6px; }
+.msg-meta { font-size: .74rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.msg-mail-err { color: var(--red); }
+.msg-row .btn { margin-top: 8px; }
 
 /* ---- screen time gauge ---- */
 .gauge-wrap { text-align: center; margin: 4px 0 18px; }
@@ -389,6 +409,7 @@ const SKILLS = [
   { slug: 'logic', name: 'Logic Puzzles' },
 ];
 const SKILL_NAME = Object.fromEntries(SKILLS.map(s => [s.slug, s.name]));
+const APP_VERSION = 'v1.0';
 const SAGA_NAMES = { pewter: 'Pewter Gym', cerulean: 'Cerulean Gym', celadon: 'Celadon Gym', fuchsia: 'Fuchsia Gym', cinnabar: 'Cinnabar Gym' };
 const RARITY_COLOR = { common: '#8891b3', rare: '#4fc3f7', epic: '#b388ff', legendary: '#ffd54a' };
 const TAUNTS = [
@@ -418,6 +439,7 @@ const S = {
   taunt: TAUNTS[Math.floor(Math.random() * TAUNTS.length)],
   screenTime: null, screenTimeFullSeen: false, screenTimeLog: null,
   clips: null, clipPlays: null, videoEnabled: false,
+  messages: null, messagingEnabled: true,
 };
 
 // ---------- api ----------
@@ -440,7 +462,9 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     let msg = 'request failed';
     try { msg = (await res.json()).error || msg; } catch (e) {}
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status; // callers that care (e.g. 429 on messages) can branch on it
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -628,6 +652,7 @@ async function onRoute() {
     else if (S.view === 'parents') await loadParents();
     else if (S.view === 'qreview') await loadQuestionReview();
     else if (S.view === 'stlog') await loadScreenTimeLog();
+    else if (S.view === 'inbox') await loadInbox();
     else if (S.view === 'clips') await loadClipsManage();
     render();
   } catch (e) { showError(e); }
@@ -642,12 +667,22 @@ async function loadHome() {
 async function loadCollection() { S.collection = await api('/collection'); }
 async function loadQuests() { S.quests = await api('/quests'); }
 async function loadParents() {
-  const [summary, settings, questions, health, screenTime] = await Promise.all([
+  const [summary, settings, questions, health, screenTime, messages] = await Promise.all([
     api('/parents/summary?days=30'), api('/settings'), api('/questions?source=ai'),
-    fetch('/api/health').then(r => r.json()).catch(() => ({ ai: true })), api('/screentime?day=' + localDayStr()),
+    fetch('/api/health').then(r => r.json()).catch(() => ({ ai: true, messaging: true })), api('/screentime?day=' + localDayStr()),
+    api('/messages'),
   ]);
   S.parents = summary; S.settingsData = settings; S.questions = questions || []; S.aiEnabled = !!health.ai;
+  S.messagingEnabled = !!health.messaging; S.messages = messages || [];
   applyScreenTime(screenTime);
+}
+async function loadInbox() {
+  const [messages, health] = await Promise.all([
+    api('/messages'),
+    fetch('/api/health').then(r => r.json()).catch(() => ({ messaging: true })),
+  ]);
+  S.messages = messages || [];
+  S.messagingEnabled = !!health.messaging;
 }
 async function loadScreenTimeLog() { S.screenTimeLog = await api('/screentime/log') || []; }
 // applyScreenTime tracks the full-state transition in S so the fanfare plays
@@ -661,7 +696,7 @@ function applyScreenTime(st) {
 function render() {
   renderTabBar();
   const m = $('#main');
-  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents, qreview: renderQuestionReview, stlog: renderScreenTimeLog, clips: renderClipsManage }[S.view] || renderHome)(m);
+  ({ home: renderHome, play: renderPlay, collection: renderCollection, quests: renderQuests, parents: renderParents, qreview: renderQuestionReview, stlog: renderScreenTimeLog, inbox: renderInbox, clips: renderClipsManage }[S.view] || renderHome)(m);
   renderOverlay();
 }
 function renderTabBar() {
@@ -688,7 +723,8 @@ function renderHome(m) {
       '<button class="skill-chip" onclick="startTraining(\'' + sk.slug + '\')"><span class="sc-name">' + sk.name + '</span><span class="sc-level">Lv ' + (p.levels[sk.slug] || 1) + '</span></button>'
     ).join('') + '</div>' +
     activityBarHTML(p.days) +
-    recentUnlocksHTML();
+    recentUnlocksHTML() +
+    '<button class="msg-btn" onclick="openMessageDialog()">📮 Message Uncle Jim</button>';
   animatePowerNum(p.xp);
   if (S.screenTime) animateGaugeNeedle(S.screenTime);
   const strip = document.querySelector('.activity-scroll');
@@ -801,6 +837,41 @@ function animatePowerNum(target) {
     if (p < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
+}
+
+// ---------- MESSAGE UNCLE JIM (kid compose) ----------
+const MSG_KINDS = [['bug', '🐛 Bug'], ['idea', '💡 Idea'], ['message', '💬 Message']];
+let msgKind = 'message';
+function openMessageDialog() {
+  msgKind = 'message';
+  openDialog('<h2>📮 Message Uncle Jim</h2>' +
+    '<div class="msg-kinds">' + MSG_KINDS.map(([k, label]) =>
+      '<button class="msg-kind ' + (k === msgKind ? 'sel' : '') + '" data-kind="' + k + '" onclick="selectMsgKind(\'' + k + '\')">' + label + '</button>'
+    ).join('') + '</div>' +
+    '<textarea id="msgBody" class="msg-text" maxlength="2000" placeholder="Tell Uncle Jim what happened…"></textarea>' +
+    '<div class="dlg-actions"><button class="btn ghost" onclick="closeDialog()">Cancel</button>' +
+    '<button class="btn primary" onclick="sendMessage()">Send 📨</button></div>');
+}
+function selectMsgKind(k) {
+  msgKind = k;
+  document.querySelectorAll('.msg-kind').forEach(b => b.classList.toggle('sel', b.dataset.kind === k));
+}
+async function sendMessage() {
+  const body = ($('#msgBody').value || '').trim();
+  if (!body) { toast('Write something first!'); return; }
+  // Context rides along invisibly so a bug report says which screen it came
+  // from. No recipient here, ever — the server decides where email goes.
+  const context = { version: APP_VERSION, route: location.hash || '#/home', user_agent: navigator.userAgent };
+  try {
+    await api('/messages', { method: 'POST', body: { kind: msgKind, body, context } });
+    closeDialog();
+    sfx.correct();
+    toast('Sent to Uncle Jim! 📨');
+  } catch (e) {
+    if (e.status === 429) { closeDialog(); toast("You've sent lots of notes — try again in a little while!"); return; }
+    if (e.message === 'offline' || e.message === 'unauthorized') return;
+    toast("Hmm, that didn't send — try again in a bit!");
+  }
 }
 
 // ---------- PLAY: session lifecycle ----------
@@ -1256,6 +1327,7 @@ function renderParents(m) {
     p.per_skill.map(s => '<tr><td>' + (SKILL_NAME[s.skill] || s.skill) + '</td><td>' + s.level + '</td><td>' + s.attempts + '</td><td>' + (s.correct_bp / 100).toFixed(1) + '%</td><td>' + (s.median_ms / 1000).toFixed(1) + 's</td><td>' + (s.trend > 0 ? '↑' : s.trend < 0 ? '↓' : '→') + '</td></tr>').join('') +
     '</tbody></table></div>' +
     '<h3>Screen Time</h3>' + screenTimeBlockHTML(S.screenTime, st) +
+    '<h3>Messages from Skyler</h3>' + messagesSummaryHTML() +
     '<h3>Recent Misses</h3>' + (p.recent_misses.length ? '<div class="miss-list">' + p.recent_misses.map(missHTML).join('') + '</div>' : '<div class="empty">No recent misses</div>') +
     '<h3>AI Content Bank</h3>' +
     (S.aiEnabled ? '' : '<div class="ai-off-notice">⚠️ AI content generation is off — no <code>ANTHROPIC_API_KEY</code> configured on the server. Training still works from whatever\'s already in the bank; set the key and redeploy to generate more.</div>') +
@@ -1271,7 +1343,59 @@ function renderParents(m) {
     '<h3 class="danger-h">Danger Zone</h3><div class="danger-zone">' +
     '<div class="danger-copy">Reset all of Skyler’s progress back to zero — Trainer XP, levels, streaks, unlocks, daily history, and quest progress. The question bank and saga stories are kept. <b>This cannot be undone</b> (export a backup first).</div>' +
     '<button class="btn danger" onclick="confirmReset()">↺ Reset All Progress</button></div>' +
-    '<div class="version">Poké Math Training · v1.0</div></div>';
+    '<div class="version">Poké Math Training · ' + APP_VERSION + '</div></div>';
+}
+// ---------- messages inbox (#/inbox, parents subpage) ----------
+const MSG_KIND_ICON = { bug: '🐛', idea: '💡', message: '💬' };
+function messagingOffNoticeHTML() {
+  if (S.messagingEnabled) return '';
+  return '<div class="ai-off-notice">✉️ Email delivery isn\'t configured (set <code>SMTP_USER</code> + <code>SMTP_PASS</code> on Render) — messages are still saved here.</div>';
+}
+function messagesSummaryHTML() {
+  const msgs = S.messages || [];
+  const unread = msgs.filter(mm => !mm.read_at).length;
+  const summary = !msgs.length ? 'No messages yet.'
+    : msgs.length + ' message' + (msgs.length === 1 ? '' : 's') + (unread ? ' · <b>' + unread + ' unread</b>' : ' · all read');
+  return messagingOffNoticeHTML() +
+    '<div class="hint">Everything Skyler sends from the 📮 button on Home lands here (and by email when configured).</div>' +
+    '<div class="qreview-summary">' + summary + '</div>' +
+    '<button class="btn" onclick="go(\'inbox\')">Open Inbox' + (unread ? ' (' + unread + ')' : '') + ' →</button>';
+}
+function renderInbox(m) {
+  const msgs = S.messages;
+  if (!msgs) { m.innerHTML = '<div class="empty">Loading…</div>'; return; }
+  const unread = msgs.filter(mm => !mm.read_at).length;
+  m.innerHTML = '<div class="parents-wrap">' +
+    '<button class="btn ghost sm" onclick="go(\'parents\')">← Back</button>' +
+    '<h2>📮 Skyler\'s Messages' + (unread ? ' · ' + unread + ' unread' : '') + '</h2>' +
+    messagingOffNoticeHTML() +
+    (msgs.length ? '<div class="msg-list">' + msgs.map(messageRowHTML).join('') + '</div>'
+      : '<div class="empty">Nothing yet — the 📮 button is on his Home screen.</div>') +
+    '</div>';
+}
+function messageRowHTML(msg) {
+  const ctx = msg.context || {};
+  const mailStatus = msg.emailed ? '<span>✉️ emailed</span>'
+    : '<span class="msg-mail-err">⚠️ saved, not emailed' + (msg.email_error ? ' — ' + esc(msg.email_error) : '') + '</span>';
+  const meta = [
+    '<span>' + new Date(msg.created_at).toLocaleString() + '</span>',
+    ctx.route ? '<span>' + esc(ctx.route) + '</span>' : '',
+    ctx.version ? '<span>' + esc(ctx.version) + '</span>' : '',
+    mailStatus,
+  ].filter(Boolean).join('');
+  return '<div class="msg-row ' + (msg.read_at ? '' : 'unread') + '">' +
+    '<div><b>' + (MSG_KIND_ICON[msg.kind] || '💬') + ' ' + esc(msg.kind) + '</b></div>' +
+    '<div class="msg-body">' + esc(msg.body) + '</div>' +
+    '<div class="msg-meta">' + meta + '</div>' +
+    (msg.read_at ? '' : '<button class="btn sm" onclick="markMessageRead(' + msg.id + ')">Mark read</button>') +
+    '</div>';
+}
+async function markMessageRead(id) {
+  try {
+    await api('/messages/' + id + '/read', { method: 'POST' });
+    S.messages = await api('/messages') || [];
+    render();
+  } catch (e) { showError(e); }
 }
 function dayChartSVG(perDay) {
   if (!perDay.length) return '<div class="empty">No activity yet</div>';

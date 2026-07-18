@@ -493,7 +493,8 @@ exactly like the siblings; `GET /api/health` unauthenticated. JSON in/out,
 snake_case.
 
 ```
-GET    /api/health                → {"ok":true,"ai":<key configured>,"video":<R2 configured>}
+GET    /api/health                → {"ok":true,"ai":<key configured>,"video":<R2 configured>,
+                                     "messaging":<SMTP configured>}
 
 POST   /api/sessions              {mode}                        → Session
 POST   /api/sessions/{id}/end                                   → 204
@@ -533,6 +534,11 @@ GET    /api/settings              → settings row
 PUT    /api/settings              {daily_count, level_override, minutes_per_correct,
                                     clip_chance, clip_session_cap}
 GET    /api/export                → full-DB JSON download
+
+POST   /api/messages              {kind, body, context}         → saved Message (429 rate-limited)
+GET    /api/messages              → [Message] newest first        (parent inbox)
+GET    /api/messages/unread       → {count}                       (parent badge)
+POST   /api/messages/{id}/read    → 204
 
 GET    /api/clips                 → [Clip] metadata for the manage page
 POST   /api/clips                 multipart {file, title, on_correct, on_wrong,
@@ -621,6 +627,64 @@ type the URL fragment, or follow the link from the Parents page). Upload
 (file + title + trigger checkboxes + weight + enabled, with a local preview
 and client-read `duration_ms`), clip list with inline condition toggles and
 delete, the two settings knobs, and a recent-plays log.
+
+## Messages (`internal/game/messages.go`, `internal/mailer`)
+
+Skyler sends short notes (bug report 🐛 / idea 💡 / message 💬) from a
+"📮 Message Uncle Jim" button on Home; the server emails them to Jim and
+always saves them — this doubles as the feedback channel for co-designing
+new games.
+
+- **Save always, email best-effort.** Every message is inserted into
+  `messages` before the send is attempted; a send failure records
+  `email_error` on the row but never fails the request. The kid always sees
+  "Sent!"; Jim sees every message in the hidden parents inbox even when
+  email is down or unconfigured.
+- **Delivery is Gmail SMTP with an app password** via stdlib `net/smtp`
+  (STARTTLS on 587, `internal/mailer` — no SDK, no third-party service),
+  gated on env exactly like AI and R2: off until `SMTP_USER` + `SMTP_PASS`
+  are both set; health reports `messaging:false` and messages save unsent.
+- **The recipient is server-controlled, never from the request.** "To" comes
+  only from `MESSAGE_TO` (default = the sending account), so the endpoint
+  can't be turned into a spam relay; From is always the authenticated
+  account (Gmail requires it). The kid never sees or sets an address.
+- **Rate limit: 10 messages per rolling hour** (`CountMessagesSince`);
+  the 11th returns 429 and is *not* saved. Body ≤ 2000 chars, trimmed,
+  non-empty; kind defaults to `message`.
+- The email body is the message text plus a context footer
+  (`{version, route, user_agent}` auto-attached by the PWA, stored in
+  `messages.context`), so a bug report says which screen it came from.
+
+**Schema (migration 008):**
+
+```sql
+CREATE TABLE messages (
+    id          BIGSERIAL PRIMARY KEY,
+    kind        TEXT NOT NULL DEFAULT 'message'
+                CHECK (kind IN ('bug','idea','message')),
+    body        TEXT NOT NULL,
+    context     JSONB,                 -- {version, route, user_agent} auto-attached
+    emailed     BOOLEAN NOT NULL DEFAULT FALSE,
+    email_error TEXT,                  -- last send error, if any
+    read_at     TIMESTAMPTZ,           -- parent marked read
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+```
+POST /api/messages            {kind, body, context}  → saved Message (429 if rate-limited)
+GET  /api/messages            → [Message] newest first  (parent inbox)
+GET  /api/messages/unread     → {count}                 (parent badge)
+POST /api/messages/{id}/read  → 204
+```
+
+`messages` is included in `/api/export`. The **parents inbox** lives on
+`#/parents` (summary + unread count) with the full list on the `#/inbox`
+subpage: kind icon, body, context, email status (✉️ sent / ⚠️ saved-not-
+emailed with the error), and mark-read. When health reports
+`messaging:false` the inbox notes that email delivery is off but messages
+still land there. No two-way replies, attachments, or user-settable
+recipient in v1 (see TODO.md for planned extensions).
 
 ## AI content generation (`internal/ai`)
 
@@ -716,6 +780,14 @@ else works), `AI_MODEL` (default `claude-sonnet-5`), and the video-clips R2
 vars — `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
 `R2_BUCKET`, `R2_PUBLIC_URL` (off until **all five** are set: health reports
 `video:false`, `POST /api/clips` → 503, everything else works).
+
+Message email delivery (also optional, gated): `SMTP_HOST` (default
+`smtp.gmail.com`), `SMTP_PORT` (default `587`), `SMTP_USER` (the sending
+Gmail address), `SMTP_PASS` (a Google **App Password** — 16 chars, requires
+2FA on the account — *not* the account password), `MESSAGE_TO` (default =
+`SMTP_USER`). Off until `SMTP_USER` + `SMTP_PASS` are both set: health
+reports `messaging:false` and messages save with `emailed=false`; everything
+else works.
 
 ## Verification
 

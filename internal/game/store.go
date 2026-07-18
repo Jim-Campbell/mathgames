@@ -139,6 +139,22 @@ type Store interface {
 	// the clip's title, for the manage page's recent-plays log.
 	ListClipPlays(ctx context.Context, limit int) ([]ClipPlayLog, error)
 
+	// ---- messages ----
+
+	InsertMessage(ctx context.Context, m *Message) error
+	// ListMessages returns every message, newest first (parents inbox).
+	ListMessages(ctx context.Context) ([]Message, error)
+	// UpdateMessageEmailStatus records the outcome of the best-effort email
+	// send after the row already exists (emailError empty on success).
+	UpdateMessageEmailStatus(ctx context.Context, id int64, emailed bool, emailError string) error
+	// MarkMessageRead sets read_at (idempotent -- re-marking keeps the
+	// original read time); "not found:" sentinel for an unknown id.
+	MarkMessageRead(ctx context.Context, id int64) error
+	CountUnreadMessages(ctx context.Context) (int, error)
+	// CountMessagesSince counts messages created at or after t, for the
+	// rolling-hour rate limit.
+	CountMessagesSince(ctx context.Context, t time.Time) (int, error)
+
 	// ---- export ----
 
 	// ExportAll dumps every table, keyed by table name, for GET /api/export.

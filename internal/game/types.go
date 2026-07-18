@@ -190,6 +190,36 @@ type ClipPlayLog struct {
 	PlayedAt  time.Time `json:"played_at"`
 }
 
+// Message kinds, matching the DB CHECK constraint on messages.kind.
+const (
+	MessageKindBug     = "bug"
+	MessageKindIdea    = "idea"
+	MessageKindMessage = "message"
+)
+
+// MessageContext is the auto-attached client context on a message
+// (which screen a bug report came from, on which build). All fields are
+// filled invisibly by the PWA; none are required.
+type MessageContext struct {
+	Version   string `json:"version,omitempty"`
+	Route     string `json:"route,omitempty"`
+	UserAgent string `json:"user_agent,omitempty"`
+}
+
+// Message is one note Skyler sent from the app (migration 008). Every
+// message is saved; Emailed/EmailError record whether the best-effort email
+// delivery to Jim worked (see Service.SendMessage).
+type Message struct {
+	ID         int64           `json:"id"`
+	Kind       string          `json:"kind"`
+	Body       string          `json:"body"`
+	Context    *MessageContext `json:"context,omitempty"`
+	Emailed    bool            `json:"emailed"`
+	EmailError string          `json:"email_error,omitempty"`
+	ReadAt     *time.Time      `json:"read_at,omitempty"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
 // EventResult is the API-facing shape of a fired Event, carried on
 // AttemptResult. XPBefore is the XP before the event multiplier was applied;
 // XPEarned on the enclosing AttemptResult is the final post-event value.

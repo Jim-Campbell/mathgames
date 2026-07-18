@@ -14,6 +14,7 @@ import (
 	"github.com/jimgcampbell/mathgames/internal/api"
 	"github.com/jimgcampbell/mathgames/internal/db"
 	"github.com/jimgcampbell/mathgames/internal/game"
+	"github.com/jimgcampbell/mathgames/internal/mailer"
 	"github.com/jimgcampbell/mathgames/internal/storage"
 )
 
@@ -43,6 +44,11 @@ func run(log *slog.Logger) error {
 		R2SecretKey  string
 		R2Bucket     string
 		R2PublicURL  string
+		SMTPHost     string
+		SMTPPort     string
+		SMTPUser     string
+		SMTPPass     string
+		MessageTo    string
 	}{
 		DatabaseURL:  requireEnv("DATABASE_URL"),
 		APIKey:       requireEnv("MATHGAMES_API_KEY"),
@@ -56,6 +62,11 @@ func run(log *slog.Logger) error {
 		R2SecretKey:  os.Getenv("R2_SECRET_ACCESS_KEY"),
 		R2Bucket:     os.Getenv("R2_BUCKET"),
 		R2PublicURL:  os.Getenv("R2_PUBLIC_URL"),
+		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:     getEnv("SMTP_PORT", "587"),
+		SMTPUser:     os.Getenv("SMTP_USER"),
+		SMTPPass:     os.Getenv("SMTP_PASS"),
+		MessageTo:    os.Getenv("MESSAGE_TO"), // defaults to SMTP_USER inside mailer.New
 	}
 
 	aiEnabled := cfg.AnthropicKey != ""
@@ -71,6 +82,13 @@ func run(log *slog.Logger) error {
 		log.Info("R2 video storage configured")
 	} else {
 		log.Info("R2 video storage not configured (set R2_* vars to enable video clips)")
+	}
+
+	messagingEnabled := cfg.SMTPUser != "" && cfg.SMTPPass != ""
+	if messagingEnabled {
+		log.Info("messaging configured", "smtp_host", cfg.SMTPHost)
+	} else {
+		log.Info("messaging not configured (set SMTP_USER and SMTP_PASS to enable email delivery; messages are still saved)")
 	}
 
 	ctx := context.Background()
@@ -94,7 +112,8 @@ func run(log *slog.Logger) error {
 	}
 	log.Info("skill state seeded")
 
-	svc := game.NewService(database, log)
+	mail := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.MessageTo)
+	svc := game.NewService(database, mail, log)
 
 	var aiGen *ai.Generator
 	if aiEnabled {
@@ -111,10 +130,11 @@ func run(log *slog.Logger) error {
 	clipHandler := api.NewClipHandler(svc, clipStore, log)
 
 	r := api.NewRouter(api.Config{
-		APIKey: cfg.APIKey,
-		AI:     aiEnabled,
-		Video:  videoEnabled,
-		PWADir: cfg.PWADir,
+		APIKey:    cfg.APIKey,
+		AI:        aiEnabled,
+		Video:     videoEnabled,
+		Messaging: messagingEnabled,
+		PWADir:    cfg.PWADir,
 	}, gameHandler, clipHandler, log)
 
 	srv := &http.Server{

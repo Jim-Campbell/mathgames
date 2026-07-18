@@ -84,6 +84,12 @@ func (d *DB) ExportAll(ctx context.Context) (map[string]any, error) {
 	}
 	out["clip_plays"] = clipPlays
 
+	messages, err := d.ListMessages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out["messages"] = messages
+
 	return out, nil
 }
 

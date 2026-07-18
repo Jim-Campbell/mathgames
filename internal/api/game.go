@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -52,6 +53,11 @@ func (h *GameHandler) Routes(r chi.Router) {
 	r.Get("/screentime", h.screenTime)
 	r.Post("/screentime/reset", h.resetScreenTime)
 	r.Get("/screentime/log", h.screenTimeLog)
+
+	r.Post("/messages", h.createMessage)
+	r.Get("/messages", h.listMessages)
+	r.Get("/messages/unread", h.unreadMessages)
+	r.Post("/messages/{id}/read", h.markMessageRead)
 
 	r.Get("/export", h.export)
 
@@ -373,6 +379,62 @@ func (h *GameHandler) screenTimeLog(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, log)
 }
 
+// ---- messages (kid compose + parents inbox) ----
+
+func (h *GameHandler) createMessage(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Kind    string               `json:"kind"`
+		Body    string               `json:"body"`
+		Context *game.MessageContext `json:"context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	// The recipient is deliberately not read from the request anywhere --
+	// it's server config only (MESSAGE_TO), so this can't become a relay.
+	msg, err := h.svc.SendMessage(r.Context(), body.Kind, body.Body, body.Context)
+	if err != nil {
+		h.fail(w, "send message", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, msg)
+}
+
+func (h *GameHandler) listMessages(w http.ResponseWriter, r *http.Request) {
+	msgs, err := h.svc.ListMessages(r.Context())
+	if err != nil {
+		h.fail(w, "list messages", err)
+		return
+	}
+	if msgs == nil {
+		msgs = []game.Message{}
+	}
+	writeJSON(w, http.StatusOK, msgs)
+}
+
+func (h *GameHandler) unreadMessages(w http.ResponseWriter, r *http.Request) {
+	count, err := h.svc.CountUnreadMessages(r.Context())
+	if err != nil {
+		h.fail(w, "count unread messages", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"count": count})
+}
+
+func (h *GameHandler) markMessageRead(w http.ResponseWriter, r *http.Request) {
+	id, err := parseInt64(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid message id")
+		return
+	}
+	if err := h.svc.MarkMessageRead(r.Context(), id); err != nil {
+		h.fail(w, "mark message read", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // ---- export ----
 
 func (h *GameHandler) export(w http.ResponseWriter, r *http.Request) {
@@ -493,8 +555,13 @@ func parseInt64(s string) (int64, error) {
 }
 
 // fail maps service errors to status codes via sentinel prefixes ("invalid:",
-// "not found:", "conflict:"), same convention as the sibling apps.
+// "not found:", "conflict:"), same convention as the sibling apps, plus the
+// typed rate-limit error (429).
 func (h *GameHandler) fail(w http.ResponseWriter, op string, err error) {
+	if errors.Is(err, game.ErrMessageRateLimited) {
+		writeError(w, http.StatusTooManyRequests, "too many messages — try again in a little while")
+		return
+	}
 	msg := err.Error()
 	switch {
 	case strings.HasPrefix(msg, "invalid:"):

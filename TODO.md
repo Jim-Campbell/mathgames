@@ -214,8 +214,31 @@ clip-eligibility model rather than new systems:
   URL, if clip privacy ever matters more than it does for a personal family
   app. Non-trivial (HTTP range handling).
 
+## Messages — future extensions
+
+V1 (build-prompts/feature-messages.md) is one-way: Skyler → Jim, by email +
+a parents inbox. Later:
+
+- **Two-way replies**: Jim answers from the parents inbox and Skyler sees a
+  note on Home ("Uncle Jim wrote back!"). Pairs well with the video-clip
+  viewer — a reply could be a recorded clip instead of text.
+- **Screenshot attach on bug reports**: canvas-capture the current screen and
+  attach it (R2 is already wired for video; same upload path).
+- **Voice notes**: record a short audio message instead of typing (journal's
+  PWA has the mic pattern).
+- **Auto bug context**: attach the last few attempt IDs / the current
+  question so a "this problem is wrong" report is actionable without
+  guessing.
+
 ## Done
 
+- **Messages v1** — prompt written 2026-07-18
+  (build-prompts/feature-messages.md). Kid-facing "📮 Message Uncle Jim"
+  compose on Home (bug/idea/message chips, auto-attached version+screen
+  context); server saves every message then emails it via Gmail SMTP app
+  password (stdlib `net/smtp`, no dependency), gated like AI/R2; parents
+  inbox with read/email status; 10/hour rate limit; recipient is env-only,
+  never from the request.
 - **Pokémon retheme** — prompt written 2026-07-14
   (build-prompts/retheme-pokemon.md). Full reskin DBZ → Pokémon (Skyler
   doesn't know DBZ): fighters→Pokédex, 7 dragon balls→8 gym badges,

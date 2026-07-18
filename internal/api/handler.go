@@ -13,10 +13,11 @@ import (
 )
 
 type Config struct {
-	APIKey string
-	AI     bool
-	Video  bool
-	PWADir string
+	APIKey    string
+	AI        bool
+	Video     bool
+	Messaging bool
+	PWADir    string
 }
 
 func NewRouter(cfg Config, game *GameHandler, clips *ClipHandler, log *slog.Logger) *chi.Mux {
@@ -28,7 +29,7 @@ func NewRouter(cfg Config, game *GameHandler, clips *ClipHandler, log *slog.Logg
 
 	r.Route("/api", func(r chi.Router) {
 		// Health is unauthenticated.
-		r.Get("/health", healthHandler(cfg.AI, cfg.Video))
+		r.Get("/health", healthHandler(cfg.AI, cfg.Video, cfg.Messaging))
 
 		// All other /api routes require auth.
 		r.Group(func(r chi.Router) {
@@ -47,10 +48,10 @@ func NewRouter(cfg Config, game *GameHandler, clips *ClipHandler, log *slog.Logg
 	return r
 }
 
-func healthHandler(ai, video bool) http.HandlerFunc {
+func healthHandler(ai, video, messaging bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"ok":true,"ai":%t,"video":%t}`, ai, video)
+		fmt.Fprintf(w, `{"ok":true,"ai":%t,"video":%t,"messaging":%t}`, ai, video, messaging)
 	}
 }
 

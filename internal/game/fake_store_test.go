@@ -31,6 +31,8 @@ type fakeStore struct {
 	nextClipID  int64
 	clipPlays   []clipPlayRow
 	nextCPID    int64
+	messages    []Message
+	nextMsgID   int64
 }
 
 // clipPlayRow mirrors a clip_plays DB row for the fake store.
@@ -587,6 +589,66 @@ func (f *fakeStore) ListClipPlays(ctx context.Context, limit int) ([]ClipPlayLog
 		out = out[:limit]
 	}
 	return out, nil
+}
+
+// ---- messages ----
+
+func (f *fakeStore) InsertMessage(ctx context.Context, m *Message) error {
+	f.nextMsgID++
+	m.ID = f.nextMsgID
+	m.CreatedAt = time.Now()
+	f.messages = append(f.messages, *m)
+	return nil
+}
+
+func (f *fakeStore) ListMessages(ctx context.Context) ([]Message, error) {
+	out := make([]Message, len(f.messages))
+	copy(out, f.messages)
+	sort.Slice(out, func(i, j int) bool { return out[i].ID > out[j].ID })
+	return out, nil
+}
+
+func (f *fakeStore) UpdateMessageEmailStatus(ctx context.Context, id int64, emailed bool, emailError string) error {
+	for i := range f.messages {
+		if f.messages[i].ID == id {
+			f.messages[i].Emailed = emailed
+			f.messages[i].EmailError = emailError
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) MarkMessageRead(ctx context.Context, id int64) error {
+	for i := range f.messages {
+		if f.messages[i].ID == id {
+			if f.messages[i].ReadAt == nil {
+				now := time.Now()
+				f.messages[i].ReadAt = &now
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("not found: message")
+}
+
+func (f *fakeStore) CountUnreadMessages(ctx context.Context) (int, error) {
+	count := 0
+	for _, m := range f.messages {
+		if m.ReadAt == nil {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (f *fakeStore) CountMessagesSince(ctx context.Context, t time.Time) (int, error) {
+	count := 0
+	for _, m := range f.messages {
+		if !m.CreatedAt.Before(t) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 var _ Store = (*fakeStore)(nil)

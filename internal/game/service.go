@@ -27,6 +27,10 @@ type Service struct {
 	store Store
 	log   *slog.Logger
 
+	// mailer delivers kid messages by email, best-effort (see SendMessage).
+	// nil or disabled means messages are saved but never emailed.
+	mailer Mailer
+
 	// rollEvent is RollEvent by default; overridable in tests to force/deny
 	// an event without depending on the RNG.
 	rollEvent func(rng *mrand.Rand, attemptsSinceLast, elapsedMS, difficulty int) *Event
@@ -37,8 +41,8 @@ type Service struct {
 	clipRoll func(rng *mrand.Rand, correct bool, eligible []Clip, lastPlayedID int64, playsThisSession, sessionCap, chance int) *Clip
 }
 
-func NewService(store Store, log *slog.Logger) *Service {
-	return &Service{store: store, log: log, rollEvent: RollEvent, clipRoll: ClipRoll}
+func NewService(store Store, mailer Mailer, log *slog.Logger) *Service {
+	return &Service{store: store, mailer: mailer, log: log, rollEvent: RollEvent, clipRoll: ClipRoll}
 }
 
 // templateGenerators maps a template skill slug to its Generate function.
