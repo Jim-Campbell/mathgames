@@ -856,21 +856,34 @@ function selectMsgKind(k) {
   msgKind = k;
   document.querySelectorAll('.msg-kind').forEach(b => b.classList.toggle('sel', b.dataset.kind === k));
 }
+let msgSending = false;
 async function sendMessage() {
+  if (msgSending) return; // guard against a double-tap firing two sends
   const body = ($('#msgBody').value || '').trim();
   if (!body) { toast('Write something first!'); return; }
   // Context rides along invisibly so a bug report says which screen it came
   // from. No recipient here, ever — the server decides where email goes.
   const context = { version: APP_VERSION, route: location.hash || '#/home', user_agent: navigator.userAgent };
+  const btn = document.querySelector('#dlg .btn.primary');
+  msgSending = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
     await api('/messages', { method: 'POST', body: { kind: msgKind, body, context } });
     closeDialog();
     sfx.correct();
     toast('Sent to Uncle Jim! 📨');
+    return;
   } catch (e) {
     if (e.status === 429) { closeDialog(); toast("You've sent lots of notes — try again in a little while!"); return; }
-    if (e.message === 'offline' || e.message === 'unauthorized') return;
+    if (e.message === 'unauthorized') return; // askKey() already prompted
+    // The dialog sits above #offlineBar, so its own persistent notice is
+    // hidden behind the modal — always surface feedback here too, and leave
+    // the dialog open (not closeDialog()) so a retry is one tap away.
+    if (e.message === 'offline') { toast("No internet right now — try again once you're back online!"); return; }
     toast("Hmm, that didn't send — try again in a bit!");
+  } finally {
+    msgSending = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Send 📨'; }
   }
 }
 
